@@ -1,0 +1,33 @@
+{
+  "id": 1,
+  "name": "Town",
+  "description": "A modest human settlement on the edge of the wild.",
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Town Square",
+      "description": "A cobblestone square at the heart of the town. A fountain burbles at its center.",
+      "exits": {
+        "north": { "zone_id": 1, "room_id": 2 },
+        "east":  { "zone_id": 1, "room_id": 3 }
+      }
+    },
+    {
+      "id": 2,
+      "name": "North Gate",
+      "description": "A heavy iron gate stands open. The road beyond leads into dark forest.",
+      "exits": {
+        "south": { "zone_id": 1, "room_id": 1 },
+        "north": { "zone_id": 2, "room_id": 1 }
+      }
+    },
+    {
+      "id": 3,
+      "name": "Market",
+      "description": "Stalls crowd a narrow street. Vendors hawk bread, tools, and stranger things.",
+      "exits": {
+        "west": { "zone_id": 1, "room_id": 1 }
+      }
+    }
+  ]
+}

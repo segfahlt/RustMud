@@ -1,0 +1,24 @@
+{
+  "id": 2,
+  "name": "Forest",
+  "description": "Ancient trees press close. The canopy swallows the light.",
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Forest Path",
+      "description": "A rutted dirt path winds between towering oaks. The town gate is visible to the south.",
+      "exits": {
+        "south": { "zone_id": 1, "room_id": 2 },
+        "north": { "zone_id": 2, "room_id": 2 }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Dark Clearing",
+      "description": "The trees thin into a circular clearing. Something has scorched the earth here. Bones litter the ground.",
+      "exits": {
+        "south": { "zone_id": 2, "room_id": 1 }
+      }
+    }
+  ]
+}
