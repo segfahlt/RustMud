@@ -1,0 +1,15 @@
+{
+  "id": 3,
+  "name": "The Debris Field",
+  "description": "The mineral-rich ejecta from the ancient impact crater, scattered north of Firstfall across alien scrubland. Resource runners work this zone every day. Not all of them come back.",
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Debris Field — Threshold",
+      "description": "Just outside the North Gate, where the packed-dirt of Firstfall's immediate perimeter gives way to open terrain. The ground here is darker than it should be — impact-fused minerals threaded through the native soil. Chunks of dense rock protrude at odd angles, older than the colony by fifty thousand years. Firstfall's North Gate is visible to the south. The debris field stretches north.",
+      "exits": {
+        "south": { "zone_id": 2, "room_id": 11 }
+      }
+    }
+  ]
+}

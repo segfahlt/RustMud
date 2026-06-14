@@ -1,23 +1,26 @@
 use std::collections::HashMap;
 
-// Declare submodules. Rust looks for src/world/room.rs and src/world/zone.rs.
+pub mod fixture;
 pub mod loader;
+pub mod object;
 pub mod room;
 pub mod zone;
 
-// Re-export the types callers actually need so they can write
-// `use crate::world::Room` instead of `use crate::world::room::Room`.
+pub use fixture::Fixture;
+pub use object::{ObjectInstance, ObjectRegistry, ObjectTemplate};
 pub use room::{Direction, Room, RoomRef};
 pub use zone::Zone;
 
 pub struct World {
     zones: HashMap<u32, Zone>,
+    pub object_registry: ObjectRegistry,
 }
 
 impl World {
     pub fn new() -> Self {
         World {
-            zones: HashMap::new(),
+            zones:           HashMap::new(),
+            object_registry: HashMap::new(),
         }
     }
 
@@ -31,6 +34,10 @@ impl World {
 
     pub fn get_room(&self, zone_id: u32, room_id: u32) -> Option<&Room> {
         self.zones.get(&zone_id)?.get_room(room_id)
+    }
+
+    pub fn get_room_mut(&mut self, zone_id: u32, room_id: u32) -> Option<&mut Room> {
+        self.zones.get_mut(&zone_id)?.get_room_mut(room_id)
     }
 
     // Returns zone IDs in sorted order.
@@ -77,6 +84,8 @@ mod tests {
             exits: HashMap::from([
                 (Direction::North, RoomRef { zone_id: 1, room_id: 2 }),
             ]),
+            fixtures: vec![],
+            objects: vec![],
         });
         zone.add_room(Room {
             id: 2,
@@ -85,6 +94,8 @@ mod tests {
             exits: HashMap::from([
                 (Direction::South, RoomRef { zone_id: 1, room_id: 1 }),
             ]),
+            fixtures: vec![],
+            objects: vec![],
         });
         world.add_zone(zone);
         world
@@ -130,6 +141,8 @@ mod tests {
             exits: HashMap::from([
                 (Direction::North, RoomRef { zone_id: 1, room_id: 999 }),
             ]),
+            fixtures: vec![],
+            objects: vec![],
         });
         world.add_zone(zone);
         assert!(!world.validate().is_empty());

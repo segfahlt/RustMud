@@ -12,7 +12,11 @@ use registry::{Category, Registry};
 
 pub enum Command {
     Look(Option<Direction>),    // look | look <dir>
+    Examine(String),            // look at <thing> | examine <thing>
     Go(Direction),
+    Get(String),                // get <thing>
+    Drop(String),               // drop <thing>
+    Inventory,                  // inventory | i
     Help(Option<String>),       // help | help <topic>
     Quit,
     Shutdown,                   // kill game + gateway  [Admin]
@@ -29,6 +33,7 @@ pub enum ParseError {
     AmbiguousCommand(String),
     UnknownDirection(String),
     MissingDirection,
+    MissingTarget(String),      // command that requires a target but got none
 }
 
 impl fmt::Display for ParseError {
@@ -44,6 +49,8 @@ impl fmt::Display for ParseError {
                 write!(f, "Unknown direction: '{}'.", dir),
             ParseError::MissingDirection =>
                 write!(f, "'go' requires a direction: north, south, east, west, up, down."),
+            ParseError::MissingTarget(cmd) =>
+                write!(f, "{}", cmd),
         }
     }
 }
@@ -99,7 +106,13 @@ pub fn help_text(topic: Option<&str>) -> String {
         },
 
         None => {
-            let order = [Category::Movement, Category::Info, Category::Communication, Category::Admin];
+            let order = [
+                Category::Movement,
+                Category::Items,
+                Category::Info,
+                Category::Communication,
+                Category::Admin,
+            ];
             let mut out = String::from("Available commands:\n");
             for cat in &order {
                 let cmds: Vec<_> = reg.all().iter().filter(|d| &d.category == cat).collect();
@@ -134,6 +147,24 @@ mod tests {
     #[test] fn parse_look_north()     { assert!(matches!(parse("look north"),  Ok(Command::Look(Some(Direction::North))))); }
     #[test] fn parse_look_dir_short() { assert!(matches!(parse("look n"),      Ok(Command::Look(Some(Direction::North))))); }
     #[test] fn parse_look_dir_pre()   { assert!(matches!(parse("look no"),     Ok(Command::Look(Some(Direction::North))))); }
+
+    // --- examine (via look at) ---
+    #[test] fn parse_look_at_thing()  { assert!(matches!(parse("look at forge"), Ok(Command::Examine(_)))); }
+    #[test] fn parse_look_target()    { assert!(matches!(parse("look forge"),    Ok(Command::Examine(_)))); }
+    #[test] fn parse_examine()        { assert!(matches!(parse("examine forge"), Ok(Command::Examine(_)))); }
+    #[test] fn parse_examine_prefix() { assert!(matches!(parse("ex forge"),      Ok(Command::Examine(_)))); }
+
+    // --- inventory ---
+    #[test] fn parse_inventory()      { assert!(matches!(parse("inventory"), Ok(Command::Inventory))); }
+    #[test] fn parse_inventory_alias(){ assert!(matches!(parse("i"),         Ok(Command::Inventory))); }
+    #[test] fn parse_inventory_inv()  { assert!(matches!(parse("inv"),       Ok(Command::Inventory))); }
+
+    // --- get / drop ---
+    #[test] fn parse_get()            { assert!(matches!(parse("get knife"), Ok(Command::Get(_)))); }
+    #[test] fn parse_get_take()       { assert!(matches!(parse("take knife"),Ok(Command::Get(_)))); }
+    #[test] fn parse_drop()           { assert!(matches!(parse("drop knife"),Ok(Command::Drop(_)))); }
+    #[test] fn parse_get_nothing()    { assert!(matches!(parse("get"),       Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_drop_nothing()   { assert!(matches!(parse("drop"),      Err(ParseError::MissingTarget(_)))); }
 
     // --- go ---
     #[test] fn parse_go_north() { assert!(matches!(parse("go north"), Ok(Command::Go(Direction::North)))); }

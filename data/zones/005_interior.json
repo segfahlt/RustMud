@@ -1,0 +1,15 @@
+{
+  "id": 5,
+  "name": "Continental Interior",
+  "description": "Beyond the West Gate: dense alien ecosystem, unbroken Coherence, no established paths. Nothing here has learned to tolerate humans yet.",
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Continental Interior — Edge",
+      "description": "The terrain just outside the settlement's restricted west gate is unlike anything near the other exits. No ejecta field here, no debris-thinned ground, no beaten paths from resource runners. The ecosystem is intact and dense — alien vegetation in configurations that don't follow any pattern evolution would produce without interference. The Coherence is heavier here. Something in the undergrowth to the west watches without revealing itself. The gate and checkpoint are visible back to the east.",
+      "exits": {
+        "east": { "zone_id": 2, "room_id": 47 }
+      }
+    }
+  ]
+}

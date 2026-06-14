@@ -524,6 +524,9 @@ async fn restore_character(
     if let Some(p) = state.players.get_mut(&client_id) {
         p.core.health     = health;
         p.core.max_health = max_health;
+        if let Some(cs) = save.characters.get(character_id) {
+            p.inventory = cs.inventory.clone();
+        }
     }
 
     if !is_new {
@@ -582,10 +585,10 @@ async fn do_save(
             let snapshot = if use_home {
                 // Save at home room instead of current location.
                 let home = home_room_for(character_id);
-                let health = state.players.get(client_id)
-                    .map(|p| p.core.max_health)
-                    .unwrap_or(100);
-                Some(CharacterSave { zone_id: home.zone_id, room_id: home.room_id, health, max_health: health })
+                let (health, inventory) = state.players.get(client_id)
+                    .map(|p| (p.core.max_health, p.inventory.clone()))
+                    .unwrap_or((100, vec![]));
+                Some(CharacterSave { zone_id: home.zone_id, room_id: home.room_id, health, max_health: health, inventory })
             } else {
                 state.snapshot_character(*client_id)
             };

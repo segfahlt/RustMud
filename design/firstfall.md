@@ -11,8 +11,8 @@ Firstfall is the landing base and the only permanent human settlement of any siz
 It is simultaneously a Corporate administrative hub, a frontier town, a black market, and the only place on the planet where you can get a real meal, a real doctor, and a locked door between you and what's outside the walls.
 
 **Age:** 1 year old. The wall is up. The prefabs are standing. It does not yet feel permanent.
-**Population:** ~700 permanent residents. The first year was brutal — not everyone who landed is still here.
-**Physical structure:** Corporate prefab modules form the original core — gray, modular, functional. Around them, settlers have begun building with salvaged materials and local wood. It looks like a campsite that decided to become a town. The perimeter wall is the one thing everyone agrees needs to stay standing.
+**Population:** ~100. The original landing was far larger. The planet disagreed.
+**Physical structure:** Corporate prefab modules form the original core — gray, modular, functional, and there are more of them than there are people to fill them. Around them, settlers have built what they could from salvaged materials and local wood. Empty bunks and unused equipment tell the story the survivors don't share with new arrivals. The perimeter wall is the one thing everyone agrees needs to stay standing.
 
 ---
 

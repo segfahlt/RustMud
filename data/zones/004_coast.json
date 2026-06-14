@@ -1,0 +1,15 @@
+{
+  "id": 4,
+  "name": "Coastal Scrubland",
+  "description": "The alien terrain east of Firstfall, where the ejecta field thins and the unmodified ecosystem presses in from the coast. The Coherence is stronger here than inside the walls. The sounds are wrong.",
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Coastal Scrubland — Edge",
+      "description": "The terrain just outside Firstfall's East Gate — low alien vegetation with textures that don't match anything in Earth botany, growing in the narrow band where impact debris meets native coastal soil. The colors shift subtly with the light. Something in the undergrowth moves with more coordination than individual animals should show. Firstfall's East Gate is to the west. The coast lies further east.",
+      "exits": {
+        "west": { "zone_id": 2, "room_id": 43 }
+      }
+    }
+  ]
+}

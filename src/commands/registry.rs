@@ -6,6 +6,7 @@ use super::{Command, ParseError};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {
     Movement,
+    Items,
     Info,
     Communication,
     Admin,
@@ -15,6 +16,7 @@ impl Category {
     pub fn label(&self) -> &'static str {
         match self {
             Category::Movement      => "Movement",
+            Category::Items         => "Items",
             Category::Info          => "Info",
             Category::Communication => "Communication",
             Category::Admin         => "Admin",
@@ -49,9 +51,37 @@ impl Registry {
             CommandDef {
                 name: "look", priority: 10, aliases: &[],
                 category: Category::Info,
-                usage: "look [direction]",
-                description: "Look at your surroundings, or peek in a direction.",
+                usage: "look [direction | at <thing>]",
+                description: "Look around, peek in a direction, or look at something.",
                 parse: parse_look,
+            },
+            CommandDef {
+                name: "examine", priority: 10, aliases: &[],
+                category: Category::Items,
+                usage: "examine <thing>",
+                description: "Examine something closely.",
+                parse: parse_examine,
+            },
+            CommandDef {
+                name: "get", priority: 15, aliases: &["take"],
+                category: Category::Items,
+                usage: "get <thing>",
+                description: "Pick up an object from the room.",
+                parse: parse_get,
+            },
+            CommandDef {
+                name: "drop", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "drop <thing>",
+                description: "Drop something from your inventory.",
+                parse: parse_drop,
+            },
+            CommandDef {
+                name: "inventory", priority: 10, aliases: &["i", "inv"],
+                category: Category::Items,
+                usage: "inventory",
+                description: "List what you are carrying.",
+                parse: |_| Ok(Command::Inventory),
             },
             CommandDef {
                 name: "go", priority: 10, aliases: &["move"],
@@ -196,10 +226,37 @@ fn parse_look(rest: &str) -> Result<Command, ParseError> {
     if rest.is_empty() {
         return Ok(Command::Look(None));
     }
-    match prefix_match_direction(rest) {
-        Some(dir) => Ok(Command::Look(Some(dir))),
-        None      => Err(ParseError::UnknownDirection(rest.to_string())),
+    // Strip optional "at " prefix: `look at forge` → examine "forge"
+    let target = rest.strip_prefix("at ").unwrap_or(rest).trim();
+    if target.is_empty() {
+        return Ok(Command::Look(None));
     }
+    match prefix_match_direction(target) {
+        Some(dir) => Ok(Command::Look(Some(dir))),
+        None      => Ok(Command::Examine(target.to_string())),
+    }
+}
+
+fn parse_examine(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Examine what?".to_string()));
+    }
+    let target = rest.strip_prefix("at ").unwrap_or(rest).trim();
+    Ok(Command::Examine(target.to_string()))
+}
+
+fn parse_get(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Get what?".to_string()));
+    }
+    Ok(Command::Get(rest.to_string()))
+}
+
+fn parse_drop(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Drop what?".to_string()));
+    }
+    Ok(Command::Drop(rest.to_string()))
 }
 
 fn parse_go(rest: &str) -> Result<Command, ParseError> {
@@ -251,17 +308,28 @@ mod tests {
     #[test] fn find_exact_alias() { assert_eq!(reg().find("?").unwrap().name,    "help"); }
     #[test] fn find_exit_alias()  { assert_eq!(reg().find("exit").unwrap().name, "quit"); }
     #[test] fn find_move_alias()  { assert_eq!(reg().find("move").unwrap().name, "go"); }
+    #[test] fn find_i_alias()     { assert_eq!(reg().find("i").unwrap().name,    "inventory"); }
+    #[test] fn find_inv_alias()   { assert_eq!(reg().find("inv").unwrap().name,  "inventory"); }
+    #[test] fn find_take_alias()  { assert_eq!(reg().find("take").unwrap().name, "get"); }
 
     // --- prefix → unique match ---
-    #[test] fn find_prefix_look() { assert_eq!(reg().find("lo").unwrap().name,  "look"); }
-    #[test] fn find_prefix_quit() { assert_eq!(reg().find("qu").unwrap().name,  "quit"); }
-    #[test] fn find_prefix_help() { assert_eq!(reg().find("hel").unwrap().name, "help"); }
+    #[test] fn find_prefix_look()      { assert_eq!(reg().find("lo").unwrap().name,  "look"); }
+    #[test] fn find_prefix_quit()      { assert_eq!(reg().find("qu").unwrap().name,  "quit"); }
+    #[test] fn find_prefix_help()      { assert_eq!(reg().find("hel").unwrap().name, "help"); }
+    #[test] fn find_prefix_examine()   { assert_eq!(reg().find("ex").unwrap().name,  "examine"); }
+    #[test] fn find_prefix_get()       { assert_eq!(reg().find("ge").unwrap().name,  "get"); }
+    #[test] fn find_prefix_drop()      { assert_eq!(reg().find("dr").unwrap().name,  "drop"); }
+    #[test] fn find_prefix_inventory() { assert_eq!(reg().find("inven").unwrap().name, "inventory"); }
+
+    // --- priority resolution: movement beats same-letter item commands ---
+    #[test] fn find_g_resolves_go()    { assert_eq!(reg().find("g").unwrap().name,  "go"); }
+    #[test] fn find_d_resolves_down()  { assert_eq!(reg().find("d").unwrap().name,  "down"); }
+    #[test] fn find_e_resolves_east()  { assert_eq!(reg().find("e").unwrap().name,  "east"); }
 
     // --- prefix → single-char (no alias needed) ---
     #[test] fn find_l_resolves_look()  { assert_eq!(reg().find("l").unwrap().name, "look"); }
     #[test] fn find_n_resolves_north() { assert_eq!(reg().find("n").unwrap().name, "north"); }
     #[test] fn find_s_resolves_south() { assert_eq!(reg().find("s").unwrap().name, "south"); }
-    #[test] fn find_e_resolves_east()  { assert_eq!(reg().find("e").unwrap().name, "east"); }
     #[test] fn find_w_resolves_west()  { assert_eq!(reg().find("w").unwrap().name, "west"); }
     #[test] fn find_h_resolves_help()  { assert_eq!(reg().find("h").unwrap().name, "help"); }
     #[test] fn find_q_resolves_quit()  { assert_eq!(reg().find("q").unwrap().name, "quit"); }

@@ -9,7 +9,7 @@ use argon2::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::world::RoomRef;
+use crate::world::{ObjectInstance, RoomRef};
 
 // --- Permissions ---
 
@@ -77,6 +77,8 @@ pub struct CharacterSave {
     pub room_id:    u32,
     pub health:     u32,
     pub max_health: u32,
+    #[serde(default)]
+    pub inventory:  Vec<ObjectInstance>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

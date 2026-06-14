@@ -80,7 +80,7 @@ The first colony ship to successfully dock was **The Perihelion** — named by i
 
 New players arrive aboard the latest Corporate transport — in orbit, ferried down by shuttle to the pad at Perihelion Bay. The base is **Port Meridian** to Corporate, **Firstfall** to everyone else. They carry what they brought. Nothing more. The planet is out those gates.
 
-**Colony age:** 1 year. The wall is up. The prefabs are standing. ~700 people are alive who weren't born here. The first Groundborn children do not yet exist. The Adapted caste is barely forming — a handful of people from The Perihelion's original crew who've started to notice things about themselves they don't fully have words for.
+**Colony age:** 1 year. The wall is up. The prefabs are standing. ~100 people are alive who weren't born here. The original landing was far larger. The planet killed the rest — through ecosystem aggression, alien pathogens, equipment failure, and disappearances in the bush that nobody fully explains. The survivors are the careful, the lucky, and the ones who started listening to the world instead of fighting it. The first Groundborn children do not yet exist. The Adapted caste is barely forming — a handful of people from The Perihelion's original crew who've started to notice things about themselves they don't fully have words for.
 
 ### World Entry — Arrival Narrative
 
@@ -193,5 +193,5 @@ At the deepest levels of bonding, something else becomes perceptible through the
 ## Resolved
 
 - ~~What does Firstfall look like physically?~~ Coastal bluff, prefab + early settler construction, 1 year old
-- ~~How long has the colony existed?~~ 1 year. ~700 survivors. Adapted caste just forming.
+- ~~How long has the colony existed?~~ 1 year. ~100 survivors from a much larger original landing. Adapted caste just forming.
 - ~~Where did Corporate land?~~ Perihelion Bay — ancient impact crater harbor, chosen for mineral deposits + port

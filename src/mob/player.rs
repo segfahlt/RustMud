@@ -1,15 +1,21 @@
+use crate::world::ObjectInstance;
 use super::core::MobCore;
 use super::Mobile;
 
 #[derive(Debug)]
 pub struct Player {
-    pub core:      MobCore,
-    pub character_id: String,  // stable identity, survives game reboots
+    pub core:         MobCore,
+    pub character_id: String,
+    pub inventory:    Vec<ObjectInstance>,
 }
 
 impl Player {
     pub fn new(core: MobCore, player_id: impl Into<String>) -> Self {
-        Player { core, character_id: player_id.into() }
+        Player {
+            core,
+            character_id: player_id.into(),
+            inventory:    vec![],
+        }
     }
 }
 

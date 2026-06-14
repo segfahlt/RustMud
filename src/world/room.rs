@@ -4,6 +4,9 @@ use std::str::FromStr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use super::fixture::Fixture;
+use super::object::{ObjectInstance, ObjectRegistry};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     North,
@@ -42,14 +45,16 @@ pub struct RoomRef {
 
 #[derive(Debug)]
 pub struct Room {
-    pub id: u32,
-    pub name: String,
+    pub id:          u32,
+    pub name:        String,
     pub description: String,
-    pub exits: HashMap<Direction, RoomRef>,
+    pub exits:       HashMap<Direction, RoomRef>,
+    pub fixtures:    Vec<Fixture>,
+    pub objects:     Vec<ObjectInstance>,
 }
 
 impl Room {
-    pub fn render(&self) -> String {
+    pub fn render(&self, registry: &ObjectRegistry) -> String {
         let exits = if self.exits.is_empty() {
             "none".to_string()
         } else {
@@ -60,7 +65,30 @@ impl Room {
             dirs.sort();
             dirs.join(", ")
         };
-        format!("[ {} ]\n{}\nExits: {}\n", self.name, self.description, exits)
+
+        let mut out = format!("[ {} ]\n{}", self.name, self.description);
+
+        // Fixture state lines and room object lines go between description and exits.
+        let mut extras = Vec::new();
+        for fixture in &self.fixtures {
+            let line = fixture.state_line();
+            if !line.is_empty() {
+                extras.push(line.to_string());
+            }
+        }
+        for obj in &self.objects {
+            extras.push(obj.room_look(registry).to_string());
+        }
+        if !extras.is_empty() {
+            out.push('\n');
+            for line in extras {
+                out.push('\n');
+                out.push_str(&line);
+            }
+        }
+
+        out.push_str(&format!("\nExits: {}\n", exits));
+        out
     }
 }
 

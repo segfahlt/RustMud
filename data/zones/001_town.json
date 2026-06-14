@@ -1,32 +1,84 @@
 {
   "id": 1,
-  "name": "Town",
-  "description": "A modest human settlement on the edge of the wild.",
+  "name": "Arrival",
+  "description": "The arrival sequence — shuttle interior through the approach to Firstfall's South Gate.",
+  "object_templates": [
+    {
+      "id": "perihelion_manifest",
+      "names": ["manifest", "transit manifest", "perihelion manifest"],
+      "short": "a transit manifest",
+      "room_look": "A folded transit manifest lies on the floor.",
+      "description": "A printed form from the Perihelion — passenger manifest, cargo declaration, customs disclosure. Your name is in here somewhere, among six hundred and forty. The date at the top predates landing by six months. It already feels like another century.",
+      "category": "data",
+      "weight": "tiny",
+      "flags": ["EARTH_ORIGIN"],
+      "value": 0
+    }
+  ],
   "rooms": [
     {
       "id": 1,
-      "name": "Town Square",
-      "description": "A cobblestone square at the heart of the town. A fountain burbles at its center.",
+      "name": "Cryo-Bay",
+      "description": "Row upon row of cryo-pods line the walls, most still sealed. A few stand open — the early risers from this transit. The air smells of glycerol and recycled oxygen, clinical and cold. Emergency lighting casts everything pale blue. Your muscles ache in ways you don't have words for yet.",
       "exits": {
-        "north": { "zone_id": 1, "room_id": 2 },
-        "east":  { "zone_id": 1, "room_id": 3 }
+        "east": { "zone_id": 1, "room_id": 2 }
       }
     },
     {
       "id": 2,
-      "name": "North Gate",
-      "description": "A heavy iron gate stands open. The road beyond leads into dark forest.",
+      "name": "Cargo Bay 3",
+      "description": "A long room of numbered metal lockers, each dented by the hands and hopes of whoever packed it. Yours is here. Overhead lights buzz at a frequency that sets your teeth on edge. Cold air and cryogenic hiss leak back through the passage to the west. The pressure door to the east stands open.",
+      "objects": [
+        { "template_id": "perihelion_manifest" }
+      ],
       "exits": {
-        "south": { "zone_id": 1, "room_id": 1 },
-        "north": { "zone_id": 2, "room_id": 1 }
+        "west": { "zone_id": 1, "room_id": 1 },
+        "east": { "zone_id": 1, "room_id": 3 }
       }
     },
     {
       "id": 3,
-      "name": "Market",
-      "description": "Stalls crowd a narrow street. Vendors hawk bread, tools, and stranger things.",
+      "name": "Shuttle Corridor",
+      "description": "A narrow passage with scuff marks on the deck from every boot that came before yours. A hand-printed sign reads: PERSONAL WEAPONS MUST BE DECLARED TO CORPORATE SECURITY UPON ARRIVAL. Someone has added beneath it in red marker: GOOD LUCK WITH THAT. Daylight — alien, the wrong color — bleeds in from the hatch below to the south. Storage space extends north.",
       "exits": {
-        "west": { "zone_id": 1, "room_id": 1 }
+        "north": { "zone_id": 1, "room_id": 2 },
+        "south": { "zone_id": 1, "room_id": 4 }
+      }
+    },
+    {
+      "id": 4,
+      "name": "Disembarkation Ramp",
+      "description": "The ramp angles down from the shuttle hatch to the dock below. Through the open hatch, you see it for the first time — a sky the wrong shade of violet, lit from an angle that doesn't match any sunrise you grew up with. And there, low on the horizon, a darkness ringed with white fire. The briefings didn't prepare you for the scale of it. It watches. The ship's pressurized interior is back through the hatch to the north.",
+      "exits": {
+        "north": { "zone_id": 1, "room_id": 3 },
+        "south": { "zone_id": 1, "room_id": 5 }
+      }
+    },
+    {
+      "id": 5,
+      "name": "Perihelion Bay — Harbor Dock",
+      "description": "A prefab dock extending over water the color of strong tea. The bay is calm, its surface broken occasionally by something moving below that is not a fish. Two fishing boats and a coastal scout with a cracked hull are moored here. The air smells of salt and something underneath that has no Earth equivalent — sweet and faintly metallic, almost alive. The ship's ramp angles up to the north. A worn trail cuts into the bluff face to the west.",
+      "exits": {
+        "north": { "zone_id": 1, "room_id": 4 },
+        "west": { "zone_id": 1, "room_id": 6 }
+      }
+    },
+    {
+      "id": 6,
+      "name": "Bluff Path — Lower",
+      "description": "A worn track cuts up the face of the coastal bluff, switchbacking toward the settlement walls above. The rock here is dark and layered, threaded with mineral veins that catch the alien light in colors without Earth names. An ancient crater's flooded southern rim stretches below to the east — a natural harbor, still and wrong-colored under the alien sky. The path continues upward to the north.",
+      "exits": {
+        "east": { "zone_id": 1, "room_id": 5 },
+        "north": { "zone_id": 1, "room_id": 7 }
+      }
+    },
+    {
+      "id": 7,
+      "name": "Bluff Path — Upper",
+      "description": "The path crests the bluff and a walled settlement comes into view — a cluster of gray prefab structures surrounded by a security perimeter, raw and functional against the alien sky. A gate in the wall directly north glows amber, the warmest color you've seen since Earth. The path descends behind you to the south. The Eye hangs on the horizon. You are here. This is the planet.",
+      "exits": {
+        "south": { "zone_id": 1, "room_id": 6 },
+        "north": { "zone_id": 2, "room_id": 1 }
       }
     }
   ]

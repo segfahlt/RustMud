@@ -27,6 +27,10 @@ impl Zone {
         self.rooms.get(&room_id)
     }
 
+    pub fn get_room_mut(&mut self, room_id: u32) -> Option<&mut Room> {
+        self.rooms.get_mut(&room_id)
+    }
+
     // Returns room IDs in sorted order — callers don't need to touch the HashMap.
     pub fn room_ids(&self) -> Vec<u32> {
         let mut ids: Vec<u32> = self.rooms.keys().copied().collect();
@@ -42,7 +46,14 @@ mod tests {
     use std::collections::HashMap;
 
     fn make_room(id: u32) -> Room {
-        Room { id, name: format!("Room {id}"), description: String::new(), exits: HashMap::new() }
+        Room {
+            id,
+            name: format!("Room {id}"),
+            description: String::new(),
+            exits: HashMap::new(),
+            fixtures: vec![],
+            objects: vec![],
+        }
     }
 
     #[test]

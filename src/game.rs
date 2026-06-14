@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use crate::commands::{help_text, Command};
 use crate::mob::{MobCore, Player};
 use crate::persist::CharacterSave;
-use crate::world::{Direction, RoomRef, World};
+use crate::world::{Direction, ObjectInstance, RoomRef, World};
 
 pub struct GameState {
-    pub world: World,
+    pub world:   World,
     pub players: HashMap<u32, Player>,  // client_id → Player
 }
 
@@ -24,7 +24,6 @@ impl GameState {
         self.players.remove(&client_id);
     }
 
-    /// Snapshot the current state of a character for persistence.
     pub fn snapshot_character(&self, client_id: u32) -> Option<CharacterSave> {
         let p = self.players.get(&client_id)?;
         Some(CharacterSave {
@@ -32,6 +31,7 @@ impl GameState {
             room_id:    p.core.location.room_id,
             health:     p.core.health,
             max_health: p.core.max_health,
+            inventory:  p.inventory.clone(),
         })
     }
 }
@@ -41,7 +41,11 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
     match cmd {
         Command::Look(None)      => (describe_location(client_id, state), true),
         Command::Look(Some(dir)) => (look_direction(dir, client_id, state), true),
+        Command::Examine(target) => (cmd_examine(&target, client_id, state), true),
         Command::Go(dir)         => (go_direction(dir, client_id, state), true),
+        Command::Get(target)     => (cmd_get(&target, client_id, state), true),
+        Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
+        Command::Inventory       => (cmd_inventory(client_id, state), true),
         Command::Help(topic)     => (help_text(topic.as_deref()), true),
         Command::Quit            => ("Farewell.\n".to_string(), false),
         // Admin commands are intercepted in the connection layer before reaching here.
@@ -57,7 +61,7 @@ pub fn describe_location(client_id: u32, state: &GameState) -> String {
     };
     let loc = player.core.location;
     match state.world.get_room(loc.zone_id, loc.room_id) {
-        Some(room) => room.render(),
+        Some(room) => room.render(&state.world.object_registry),
         None       => "(You are nowhere. This is a bug.)\n".to_string(),
     }
 }
@@ -100,6 +104,130 @@ fn go_direction(dir: Direction, client_id: u32, state: &mut GameState) -> String
     }
 }
 
+fn cmd_examine(target: &str, client_id: u32, state: &GameState) -> String {
+    let loc = match state.players.get(&client_id) {
+        Some(p) => p.core.location,
+        None    => return String::new(),
+    };
+
+    // Check fixtures in the current room first.
+    if let Some(room) = state.world.get_room(loc.zone_id, loc.room_id) {
+        if let Some(fixture) = room.fixtures.iter().find(|f| f.matches_name(target)) {
+            return format!("{}\n", fixture.examine);
+        }
+        // Then objects on the floor.
+        let registry = &state.world.object_registry;
+        if let Some(obj) = room.objects.iter().find(|o| {
+            registry.get(&o.template_id)
+                .map(|t| t.matches_name(target))
+                .unwrap_or(false)
+        }) {
+            return format!("{}\n", obj.description(registry));
+        }
+    }
+
+    // Then inventory.
+    let registry = &state.world.object_registry;
+    if let Some(p) = state.players.get(&client_id) {
+        if let Some(obj) = p.inventory.iter().find(|o| {
+            registry.get(&o.template_id)
+                .map(|t| t.matches_name(target))
+                .unwrap_or(false)
+        }) {
+            return format!("{}\n", obj.description(registry));
+        }
+    }
+
+    format!("You don't see any '{}' here.\n", target)
+}
+
+fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let loc = match state.players.get(&client_id) {
+        Some(p) => p.core.location,
+        None    => return String::new(),
+    };
+
+    // Find the object and extract the info we need before releasing borrows.
+    let result: Option<(usize, ObjectInstance, String)> = {
+        let room = match state.world.get_room(loc.zone_id, loc.room_id) {
+            Some(r) => r,
+            None    => return "(You are nowhere.)\n".to_string(),
+        };
+        let registry = &state.world.object_registry;
+        room.objects.iter().enumerate().find_map(|(idx, obj)| {
+            registry.get(&obj.template_id).and_then(|tmpl| {
+                if tmpl.matches_name(target) {
+                    Some((idx, obj.clone(), tmpl.short.clone()))
+                } else {
+                    None
+                }
+            })
+        })
+    };
+
+    match result {
+        None => format!("You don't see any '{}' here.\n", target),
+        Some((idx, obj, short)) => {
+            if let Some(room) = state.world.get_room_mut(loc.zone_id, loc.room_id) {
+                room.objects.remove(idx);
+            }
+            if let Some(p) = state.players.get_mut(&client_id) {
+                p.inventory.push(obj);
+            }
+            format!("You pick up {}.\n", short)
+        }
+    }
+}
+
+fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let (loc, result) = {
+        let player = match state.players.get(&client_id) {
+            Some(p) => p,
+            None    => return String::new(),
+        };
+        let registry = &state.world.object_registry;
+        let result = player.inventory.iter().enumerate().find_map(|(idx, obj)| {
+            registry.get(&obj.template_id).and_then(|tmpl| {
+                if tmpl.matches_name(target) {
+                    Some((idx, obj.clone(), tmpl.short.clone()))
+                } else {
+                    None
+                }
+            })
+        });
+        (player.core.location, result)
+    };
+
+    match result {
+        None => format!("You aren't carrying any '{}'.\n", target),
+        Some((idx, obj, short)) => {
+            if let Some(p) = state.players.get_mut(&client_id) {
+                p.inventory.remove(idx);
+            }
+            if let Some(room) = state.world.get_room_mut(loc.zone_id, loc.room_id) {
+                room.objects.push(obj);
+            }
+            format!("You drop {}.\n", short)
+        }
+    }
+}
+
+fn cmd_inventory(client_id: u32, state: &GameState) -> String {
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+    if player.inventory.is_empty() {
+        return "You are carrying nothing.\n".to_string();
+    }
+    let registry = &state.world.object_registry;
+    let mut out = "You are carrying:\n".to_string();
+    for obj in &player.inventory {
+        out.push_str(&format!("  {} ({})\n", obj.short(registry), obj.condition.label()));
+    }
+    out
+}
+
 // --- Tests ---
 
 #[cfg(test)]
@@ -121,6 +249,8 @@ mod tests {
             exits: HashMap::from([
                 (Direction::North, RoomRef { zone_id: 1, room_id: 2 }),
             ]),
+            fixtures: vec![],
+            objects: vec![],
         });
         zone.add_room(Room {
             id: 2,
@@ -129,6 +259,8 @@ mod tests {
             exits: HashMap::from([
                 (Direction::South, RoomRef { zone_id: 1, room_id: 1 }),
             ]),
+            fixtures: vec![],
+            objects: vec![],
         });
         world.add_zone(zone);
         let mut state = GameState::new(world);
@@ -172,6 +304,13 @@ mod tests {
         let mut state = make_state();
         let (_, cont) = execute(Command::Look(None), CLIENT, &mut state);
         assert!(cont);
+    }
+
+    #[test]
+    fn inventory_empty() {
+        let mut state = make_state();
+        let (out, _) = execute(Command::Inventory, CLIENT, &mut state);
+        assert!(out.contains("nothing"));
     }
 
     #[test]
