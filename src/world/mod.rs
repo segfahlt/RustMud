@@ -4,16 +4,19 @@ pub mod fixture;
 pub mod loader;
 pub mod object;
 pub mod room;
+pub mod worldmap;
 pub mod zone;
 
 pub use fixture::Fixture;
 pub use object::{ObjectInstance, ObjectRegistry, ObjectTemplate};
 pub use room::{Direction, Room, RoomRef};
+pub use worldmap::WorldMap;
 pub use zone::Zone;
 
 pub struct World {
     zones: HashMap<u32, Zone>,
     pub object_registry: ObjectRegistry,
+    pub world_map:       WorldMap,
 }
 
 impl World {
@@ -21,6 +24,7 @@ impl World {
         World {
             zones:           HashMap::new(),
             object_registry: HashMap::new(),
+            world_map:       WorldMap::empty(),
         }
     }
 

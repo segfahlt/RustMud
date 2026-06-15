@@ -84,6 +84,13 @@ impl Registry {
                 parse: |_| Ok(Command::Inventory),
             },
             CommandDef {
+                name: "wmap", priority: 10, aliases: &["worldmap"],
+                category: Category::Info,
+                usage: "wmap",
+                description: "Display the world geological survey map.",
+                parse: |_| Ok(Command::WorldMap),
+            },
+            CommandDef {
                 name: "go", priority: 10, aliases: &["move"],
                 category: Category::Movement,
                 usage: "go <direction>",

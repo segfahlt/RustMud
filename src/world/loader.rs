@@ -10,7 +10,7 @@ use serde::Deserialize;
 use super::fixture::Fixture;
 use super::object::{ObjectInstance, ObjectTemplate};
 use super::room::Direction;
-use super::{Room, RoomRef, World, Zone};
+use super::{Room, RoomRef, World, WorldMap, Zone};
 
 // --- File format structs ---
 // Public so the schema binary can generate JSON Schema from them.
@@ -102,12 +102,22 @@ pub fn load_world(data_dir: &Path) -> Result<World, LoadError> {
         load_zone_into(&path, &mut world)?;
     }
 
+    world.world_map = load_worldmap(data_dir);
+
     let errors = world.validate();
     if !errors.is_empty() {
         return Err(LoadError::InvalidWorld(errors));
     }
 
     Ok(world)
+}
+
+pub fn load_worldmap(data_dir: &Path) -> WorldMap {
+    let path = data_dir.join("world").join("map.txt");
+    match fs::read_to_string(&path) {
+        Ok(content) => WorldMap::from_rows(content.lines().map(String::from).collect()),
+        Err(_)      => WorldMap::empty(),
+    }
 }
 
 // --- Private helpers ---

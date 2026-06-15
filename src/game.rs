@@ -46,6 +46,7 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Get(target)     => (cmd_get(&target, client_id, state), true),
         Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
         Command::Inventory       => (cmd_inventory(client_id, state), true),
+        Command::WorldMap        => (state.world.world_map.render(), true),
         Command::Help(topic)     => (help_text(topic.as_deref()), true),
         Command::Quit            => ("Farewell.\n".to_string(), false),
         // Admin commands are intercepted in the connection layer before reaching here.

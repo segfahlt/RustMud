@@ -17,6 +17,7 @@ pub enum Command {
     Get(String),                // get <thing>
     Drop(String),               // drop <thing>
     Inventory,                  // inventory | i
+    WorldMap,                    // wmap | worldmap
     Help(Option<String>),       // help | help <topic>
     Quit,
     Shutdown,                   // kill game + gateway  [Admin]
