@@ -80,7 +80,7 @@ async fn main() {
                 biased;
 
                 _ = &mut ctrl_c => {
-                    do_save(&state, &sessions, &mut save, &mut writer, false).await;
+                    do_save(&state, &sessions, &mut save, false).await;
                     eprintln!("State saved. Shutting down.");
                     break 'outer;
                 }
@@ -88,12 +88,12 @@ async fn main() {
                 Some(signal) = signal_rx.recv() => {
                     match signal {
                         Signal::Reboot => {
-                            do_save(&state, &sessions, &mut save, &mut writer, false).await;
+                            do_save(&state, &sessions, &mut save, false).await;
                             eprintln!("Rebooting game...");
                             std::process::exit(0);
                         }
                         Signal::RebootRefresh => {
-                            do_save(&state, &sessions, &mut save, &mut writer, true).await;
+                            do_save(&state, &sessions, &mut save, true).await;
                             send(&mut writer, GatewayMsg::DisconnectAll {
                                 message: "Game is rebooting. Reconnect to continue.".to_string(),
                             }).await;
@@ -101,7 +101,7 @@ async fn main() {
                             std::process::exit(0);
                         }
                         Signal::Shutdown => {
-                            do_save(&state, &sessions, &mut save, &mut writer, false).await;
+                            do_save(&state, &sessions, &mut save, false).await;
                             send(&mut writer, GatewayMsg::Shutdown).await;
                             eprintln!("Shutting down.");
                             std::process::exit(0);
@@ -312,7 +312,6 @@ async fn on_confirm_password(
         return Some(SessionState::NeedNewPassword { username });
     }
     let account = AccountFile {
-        id:            username.clone(),
         username:      username.clone(),
         password_hash: hash,
         characters:    vec![],
@@ -529,16 +528,13 @@ async fn restore_character(
         }
     }
 
-    if !is_new {
-        let loc = describe_location(client_id, state);
-        send(writer, GatewayMsg::Output {
-            client_id,
-            text: format!("Welcome back, {display_name}!\n\n{loc}\n> "),
-        }).await;
+    let loc = describe_location(client_id, state);
+    let text = if is_new {
+        format!("{loc}\n> ")
     } else {
-        let loc = describe_location(client_id, state);
-        send(writer, GatewayMsg::Output { client_id, text: format!("{loc}\n> ") }).await;
-    }
+        format!("Welcome back, {display_name}!\n\n{loc}\n> ")
+    };
+    send(writer, GatewayMsg::Output { client_id, text }).await;
 
     let permissions = char_file.as_ref()
         .map(|f| f.permissions.clone())
@@ -574,11 +570,10 @@ fn char_select_screen(account: &AccountFile, save: &WorldSave, state: &GameState
 
 // Write current state to disk and optionally reset all players to their home room.
 async fn do_save(
-    state:        &GameState,
-    sessions:     &HashMap<u32, SessionState>,
-    save:         &mut WorldSave,
-    _writer:      &mut tokio::net::unix::OwnedWriteHalf,
-    use_home:     bool,
+    state:    &GameState,
+    sessions: &HashMap<u32, SessionState>,
+    save:     &mut WorldSave,
+    use_home: bool,
 ) {
     for (client_id, session) in sessions {
         if let SessionState::Playing { character_id, .. } = session {

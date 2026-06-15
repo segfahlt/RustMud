@@ -70,19 +70,19 @@ pub fn describe_location(client_id: u32, state: &GameState) -> String {
 fn look_direction(dir: Direction, client_id: u32, state: &GameState) -> String {
     let player = match state.players.get(&client_id) {
         Some(p) => p,
-        None    => return String::new(),
+        None    => return "(You don't exist. This is a bug.)\n".to_string(),
     };
     let loc = player.core.location;
     let room = match state.world.get_room(loc.zone_id, loc.room_id) {
         Some(r) => r,
-        None    => return String::new(),
+        None    => return "(You are nowhere. This is a bug.)\n".to_string(),
     };
     match room.exits.get(&dir) {
         Some(dest) => match state.world.get_room(dest.zone_id, dest.room_id) {
-            Some(dest_room) => format!("To the {:?}: {}\n", dir, dest_room.name),
+            Some(dest_room) => format!("To the {}: {}\n", dir, dest_room.name),
             None            => String::new(),
         },
-        None => format!("There is nothing to the {:?}.\n", dir),
+        None => format!("There is nothing to the {}.\n", dir),
     }
 }
 

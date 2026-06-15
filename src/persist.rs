@@ -47,7 +47,6 @@ pub struct CharacterRef {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountFile {
-    pub id:            String,
     pub username:      String,
     pub password_hash: String,
     #[serde(default)]
@@ -115,7 +114,7 @@ pub fn load_account(accounts_dir: &Path, id: &str) -> Option<AccountFile> {
 
 pub fn write_account(accounts_dir: &Path, account: &AccountFile) -> io::Result<()> {
     fs::create_dir_all(accounts_dir)?;
-    let path = accounts_dir.join(format!("{}.json", account.id));
+    let path = accounts_dir.join(format!("{}.json", account.username));
     fs::write(path, serde_json::to_string_pretty(account)?)
 }
 

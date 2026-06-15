@@ -23,11 +23,11 @@ impl Mobile for Monster {
         &mut self.core
     }
 
-    fn describe(&self) {
+    fn describe(&self) -> String {
         let aggro = if self.aggressive { " (aggressive)" } else { "" };
-        println!(
+        format!(
             "[Monster] {} ({}/{} HP){}",
             self.core.name, self.core.health, self.core.max_health, aggro
-        );
+        )
     }
 }

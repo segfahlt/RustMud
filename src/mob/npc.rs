@@ -22,10 +22,10 @@ impl Mobile for Npc {
         &mut self.core
     }
 
-    fn describe(&self) {
-        println!(
+    fn describe(&self) -> String {
+        format!(
             "[NPC] {} ({}/{} HP)",
             self.core.name, self.core.health, self.core.max_health
-        );
+        )
     }
 }

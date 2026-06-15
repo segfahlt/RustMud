@@ -131,13 +131,10 @@ impl ObjectInstance {
         self
     }
 
-    pub fn short(&self, registry: &ObjectRegistry) -> String {
-        if let Some(name) = &self.custom_name {
-            return name.clone();
-        }
-        registry.get(&self.template_id)
-            .map(|t| t.short.clone())
-            .unwrap_or_else(|| "an unknown object".to_string())
+    pub fn short<'a>(&'a self, registry: &'a ObjectRegistry) -> &'a str {
+        self.custom_name.as_deref()
+            .or_else(|| registry.get(&self.template_id).map(|t| t.short.as_str()))
+            .unwrap_or("an unknown object")
     }
 
     pub fn room_look<'a>(&'a self, registry: &'a ObjectRegistry) -> &'a str {

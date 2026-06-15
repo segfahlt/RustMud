@@ -28,10 +28,10 @@ impl Mobile for Player {
         &mut self.core
     }
 
-    fn describe(&self) {
-        println!(
+    fn describe(&self) -> String {
+        format!(
             "[Player] {} ({}/{} HP)",
             self.core.name, self.core.health, self.core.max_health
-        );
+        )
     }
 }

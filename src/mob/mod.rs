@@ -26,7 +26,7 @@ pub trait Mobile {
     fn location(&self) -> RoomRef {
         self.core().location
     }
-    fn describe(&self);
+    fn describe(&self) -> String;
 }
 
 // The enum that lets rooms and the world hold any mob type in one collection.
@@ -57,7 +57,7 @@ impl Mobile for Mob {
         }
     }
 
-    fn describe(&self) {
+    fn describe(&self) -> String {
         match self {
             Mob::Player(p) => p.describe(),
             Mob::Npc(n) => n.describe(),

@@ -61,6 +61,6 @@ impl Fixture {
 
     /// Returns true if the input matches one of this fixture's names (prefix match).
     pub fn matches_name(&self, input: &str) -> bool {
-        self.names.iter().any(|n| n.starts_with(input) || n.as_str() == input)
+        self.names.iter().any(|n| n.starts_with(input))
     }
 }

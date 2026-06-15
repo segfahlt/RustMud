@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 
 use schemars::JsonSchema;
@@ -15,6 +16,19 @@ pub enum Direction {
     West,
     Up,
     Down,
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Direction::North => "north",
+            Direction::South => "south",
+            Direction::East  => "east",
+            Direction::West  => "west",
+            Direction::Up    => "up",
+            Direction::Down  => "down",
+        })
+    }
 }
 
 // FromStr lets us write `"north".parse::<Direction>()`.
@@ -60,7 +74,7 @@ impl Room {
         } else {
             let mut dirs: Vec<String> = self.exits
                 .keys()
-                .map(|dir| format!("{:?}", dir).to_lowercase())
+                .map(|dir| dir.to_string())
                 .collect();
             dirs.sort();
             dirs.join(", ")

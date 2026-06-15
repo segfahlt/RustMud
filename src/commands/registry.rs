@@ -220,11 +220,9 @@ pub fn prefix_match_direction(input: &str) -> Option<Direction> {
         ("up",    Direction::Up),
         ("down",  Direction::Down),
     ];
-    let hits: Vec<Direction> = DIRS.iter()
-        .filter(|(name, _)| name.starts_with(input))
-        .map(|(_, dir)| *dir)
-        .collect();
-    if hits.len() == 1 { hits.into_iter().next() } else { None }
+    let mut iter = DIRS.iter().filter(|(name, _)| name.starts_with(input));
+    let first = iter.next()?;
+    if iter.next().is_none() { Some(first.1) } else { None }
 }
 
 // --- Individual argument parsers ---
