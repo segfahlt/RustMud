@@ -16,17 +16,25 @@ pub enum Direction {
     West,
     Up,
     Down,
+    NorthEast,
+    NorthWest,
+    SouthEast,
+    SouthWest,
 }
 
 impl fmt::Display for Direction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Direction::North => "north",
-            Direction::South => "south",
-            Direction::East  => "east",
-            Direction::West  => "west",
-            Direction::Up    => "up",
-            Direction::Down  => "down",
+            Direction::North     => "north",
+            Direction::South     => "south",
+            Direction::East      => "east",
+            Direction::West      => "west",
+            Direction::Up        => "up",
+            Direction::Down      => "down",
+            Direction::NorthEast => "northeast",
+            Direction::NorthWest => "northwest",
+            Direction::SouthEast => "southeast",
+            Direction::SouthWest => "southwest",
         })
     }
 }
@@ -39,13 +47,17 @@ impl FromStr for Direction {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "north" => Ok(Direction::North),
-            "south" => Ok(Direction::South),
-            "east"  => Ok(Direction::East),
-            "west"  => Ok(Direction::West),
-            "up"    => Ok(Direction::Up),
-            "down"  => Ok(Direction::Down),
-            _       => Err(()),
+            "north"     => Ok(Direction::North),
+            "south"     => Ok(Direction::South),
+            "east"      => Ok(Direction::East),
+            "west"      => Ok(Direction::West),
+            "up"        => Ok(Direction::Up),
+            "down"      => Ok(Direction::Down),
+            "northeast" => Ok(Direction::NorthEast),
+            "northwest" => Ok(Direction::NorthWest),
+            "southeast" => Ok(Direction::SouthEast),
+            "southwest" => Ok(Direction::SouthWest),
+            _           => Err(()),
         }
     }
 }
@@ -112,12 +124,16 @@ mod tests {
 
     #[test]
     fn direction_from_str_valid() {
-        assert_eq!("north".parse::<Direction>().unwrap(), Direction::North);
-        assert_eq!("south".parse::<Direction>().unwrap(), Direction::South);
-        assert_eq!("east".parse::<Direction>().unwrap(),  Direction::East);
-        assert_eq!("west".parse::<Direction>().unwrap(),  Direction::West);
-        assert_eq!("up".parse::<Direction>().unwrap(),    Direction::Up);
-        assert_eq!("down".parse::<Direction>().unwrap(),  Direction::Down);
+        assert_eq!("north".parse::<Direction>().unwrap(),     Direction::North);
+        assert_eq!("south".parse::<Direction>().unwrap(),     Direction::South);
+        assert_eq!("east".parse::<Direction>().unwrap(),      Direction::East);
+        assert_eq!("west".parse::<Direction>().unwrap(),      Direction::West);
+        assert_eq!("up".parse::<Direction>().unwrap(),        Direction::Up);
+        assert_eq!("down".parse::<Direction>().unwrap(),      Direction::Down);
+        assert_eq!("northeast".parse::<Direction>().unwrap(), Direction::NorthEast);
+        assert_eq!("northwest".parse::<Direction>().unwrap(), Direction::NorthWest);
+        assert_eq!("southeast".parse::<Direction>().unwrap(), Direction::SouthEast);
+        assert_eq!("southwest".parse::<Direction>().unwrap(), Direction::SouthWest);
     }
 
     #[test]
@@ -125,5 +141,13 @@ mod tests {
         assert!("sideways".parse::<Direction>().is_err());
         assert!("North".parse::<Direction>().is_err()); // case-sensitive at this level
         assert!("".parse::<Direction>().is_err());
+    }
+
+    #[test]
+    fn direction_display_diagonals() {
+        assert_eq!(Direction::NorthEast.to_string(), "northeast");
+        assert_eq!(Direction::NorthWest.to_string(), "northwest");
+        assert_eq!(Direction::SouthEast.to_string(), "southeast");
+        assert_eq!(Direction::SouthWest.to_string(), "southwest");
     }
 }

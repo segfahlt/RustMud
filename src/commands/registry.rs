@@ -140,6 +140,34 @@ impl Registry {
                 parse: |_| Ok(Command::Go(Direction::Down)),
             },
             CommandDef {
+                name: "northeast", priority: 6, aliases: &["ne"],
+                category: Category::Movement,
+                usage: "northeast",
+                description: "Move northeast.",
+                parse: |_| Ok(Command::Go(Direction::NorthEast)),
+            },
+            CommandDef {
+                name: "northwest", priority: 6, aliases: &["nw"],
+                category: Category::Movement,
+                usage: "northwest",
+                description: "Move northwest.",
+                parse: |_| Ok(Command::Go(Direction::NorthWest)),
+            },
+            CommandDef {
+                name: "southeast", priority: 6, aliases: &["se"],
+                category: Category::Movement,
+                usage: "southeast",
+                description: "Move southeast.",
+                parse: |_| Ok(Command::Go(Direction::SouthEast)),
+            },
+            CommandDef {
+                name: "southwest", priority: 6, aliases: &["sw"],
+                category: Category::Movement,
+                usage: "southwest",
+                description: "Move southwest.",
+                parse: |_| Ok(Command::Go(Direction::SouthWest)),
+            },
+            CommandDef {
                 name: "help", priority: 10, aliases: &["?"],
                 category: Category::Info,
                 usage: "help [command]",
@@ -209,20 +237,44 @@ impl Registry {
 
 // --- Shared argument helper ---
 
-// Prefix-matches input against the six direction names.
-// Returns None if the input is unrecognized or ambiguous.
+// Matches input to a Direction. Resolution order:
+// 1. Exact full-name match ("north", "northeast", etc.)
+// 2. Canonical single/dual-char alias ("n", "ne", "nw", "s", "se", "sw", "e", "w", "u", "d")
+// 3. Unambiguous prefix of a full name — only if exactly one full name starts with input.
 pub fn prefix_match_direction(input: &str) -> Option<Direction> {
     const DIRS: &[(&str, Direction)] = &[
-        ("north", Direction::North),
-        ("south", Direction::South),
-        ("east",  Direction::East),
-        ("west",  Direction::West),
-        ("up",    Direction::Up),
-        ("down",  Direction::Down),
+        ("north",     Direction::North),
+        ("northeast", Direction::NorthEast),
+        ("northwest", Direction::NorthWest),
+        ("south",     Direction::South),
+        ("southeast", Direction::SouthEast),
+        ("southwest", Direction::SouthWest),
+        ("east",      Direction::East),
+        ("west",      Direction::West),
+        ("up",        Direction::Up),
+        ("down",      Direction::Down),
     ];
-    let mut iter = DIRS.iter().filter(|(name, _)| name.starts_with(input));
-    let first = iter.next()?;
-    if iter.next().is_none() { Some(first.1) } else { None }
+    if let Some(&(_, dir)) = DIRS.iter().find(|(n, _)| *n == input) {
+        return Some(dir);
+    }
+    let dir = match input {
+        "n"  => Direction::North,
+        "ne" => Direction::NorthEast,
+        "nw" => Direction::NorthWest,
+        "s"  => Direction::South,
+        "se" => Direction::SouthEast,
+        "sw" => Direction::SouthWest,
+        "e"  => Direction::East,
+        "w"  => Direction::West,
+        "u"  => Direction::Up,
+        "d"  => Direction::Down,
+        _    => {
+            let mut iter = DIRS.iter().filter(|(name, _)| name.starts_with(input));
+            let first = iter.next()?;
+            return if iter.next().is_none() { Some(first.1) } else { None };
+        }
+    };
+    Some(dir)
 }
 
 // --- Individual argument parsers ---
@@ -373,9 +425,16 @@ mod tests {
     }
 
     // --- prefix_match_direction ---
-    #[test] fn pmdir_full()    { assert_eq!(prefix_match_direction("north"), Some(Direction::North)); }
-    #[test] fn pmdir_single()  { assert_eq!(prefix_match_direction("n"),     Some(Direction::North)); }
-    #[test] fn pmdir_partial() { assert_eq!(prefix_match_direction("no"),    Some(Direction::North)); }
-    #[test] fn pmdir_east()    { assert_eq!(prefix_match_direction("e"),     Some(Direction::East)); }
-    #[test] fn pmdir_unknown() { assert_eq!(prefix_match_direction("xyz"),   None); }
+    #[test] fn pmdir_full()        { assert_eq!(prefix_match_direction("north"),     Some(Direction::North)); }
+    #[test] fn pmdir_single_n()    { assert_eq!(prefix_match_direction("n"),         Some(Direction::North)); }
+    #[test] fn pmdir_single_s()    { assert_eq!(prefix_match_direction("s"),         Some(Direction::South)); }
+    #[test] fn pmdir_alias_ne()    { assert_eq!(prefix_match_direction("ne"),        Some(Direction::NorthEast)); }
+    #[test] fn pmdir_alias_nw()    { assert_eq!(prefix_match_direction("nw"),        Some(Direction::NorthWest)); }
+    #[test] fn pmdir_alias_se()    { assert_eq!(prefix_match_direction("se"),        Some(Direction::SouthEast)); }
+    #[test] fn pmdir_alias_sw()    { assert_eq!(prefix_match_direction("sw"),        Some(Direction::SouthWest)); }
+    #[test] fn pmdir_full_ne()     { assert_eq!(prefix_match_direction("northeast"), Some(Direction::NorthEast)); }
+    #[test] fn pmdir_east()        { assert_eq!(prefix_match_direction("e"),         Some(Direction::East)); }
+    #[test] fn pmdir_unknown()     { assert_eq!(prefix_match_direction("xyz"),       None); }
+    // "no" is ambiguous: north, northeast, northwest all start with "no".
+    #[test] fn pmdir_ambiguous_no() { assert_eq!(prefix_match_direction("no"), None); }
 }

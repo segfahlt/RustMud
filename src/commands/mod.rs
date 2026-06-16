@@ -49,7 +49,7 @@ impl fmt::Display for ParseError {
             ParseError::UnknownDirection(dir) =>
                 write!(f, "Unknown direction: '{}'.", dir),
             ParseError::MissingDirection =>
-                write!(f, "'go' requires a direction: north, south, east, west, up, down."),
+                write!(f, "'go' requires a direction: n, ne, nw, s, se, sw, e, w, up, down."),
             ParseError::MissingTarget(cmd) =>
                 write!(f, "{}", cmd),
         }
@@ -145,9 +145,10 @@ mod tests {
     #[test] fn parse_look()           { assert!(matches!(parse("look"),    Ok(Command::Look(None)))); }
     #[test] fn parse_look_short()     { assert!(matches!(parse("l"),       Ok(Command::Look(None)))); }
     #[test] fn parse_look_prefix()    { assert!(matches!(parse("lo"),      Ok(Command::Look(None)))); }
-    #[test] fn parse_look_north()     { assert!(matches!(parse("look north"),  Ok(Command::Look(Some(Direction::North))))); }
-    #[test] fn parse_look_dir_short() { assert!(matches!(parse("look n"),      Ok(Command::Look(Some(Direction::North))))); }
-    #[test] fn parse_look_dir_pre()   { assert!(matches!(parse("look no"),     Ok(Command::Look(Some(Direction::North))))); }
+    #[test] fn parse_look_north()     { assert!(matches!(parse("look north"),    Ok(Command::Look(Some(Direction::North))))); }
+    #[test] fn parse_look_dir_short() { assert!(matches!(parse("look n"),        Ok(Command::Look(Some(Direction::North))))); }
+    #[test] fn parse_look_ne()        { assert!(matches!(parse("look ne"),       Ok(Command::Look(Some(Direction::NorthEast))))); }
+    #[test] fn parse_look_northeast() { assert!(matches!(parse("look northeast"),Ok(Command::Look(Some(Direction::NorthEast))))); }
 
     // --- examine (via look at) ---
     #[test] fn parse_look_at_thing()  { assert!(matches!(parse("look at forge"), Ok(Command::Examine(_)))); }
@@ -168,21 +169,30 @@ mod tests {
     #[test] fn parse_drop_nothing()   { assert!(matches!(parse("drop"),      Err(ParseError::MissingTarget(_)))); }
 
     // --- go ---
-    #[test] fn parse_go_north() { assert!(matches!(parse("go north"), Ok(Command::Go(Direction::North)))); }
-    #[test] fn parse_go_south() { assert!(matches!(parse("go south"), Ok(Command::Go(Direction::South)))); }
-    #[test] fn parse_go_east()  { assert!(matches!(parse("go east"),  Ok(Command::Go(Direction::East)))); }
-    #[test] fn parse_go_west()  { assert!(matches!(parse("go west"),  Ok(Command::Go(Direction::West)))); }
-    #[test] fn parse_go_up()    { assert!(matches!(parse("go up"),    Ok(Command::Go(Direction::Up)))); }
-    #[test] fn parse_go_down()  { assert!(matches!(parse("go down"),  Ok(Command::Go(Direction::Down)))); }
-    #[test] fn parse_go_short() { assert!(matches!(parse("go n"),     Ok(Command::Go(Direction::North)))); }
-    #[test] fn parse_go_pre()   { assert!(matches!(parse("go no"),    Ok(Command::Go(Direction::North)))); }
+    #[test] fn parse_go_north()     { assert!(matches!(parse("go north"),     Ok(Command::Go(Direction::North)))); }
+    #[test] fn parse_go_south()     { assert!(matches!(parse("go south"),     Ok(Command::Go(Direction::South)))); }
+    #[test] fn parse_go_east()      { assert!(matches!(parse("go east"),      Ok(Command::Go(Direction::East)))); }
+    #[test] fn parse_go_west()      { assert!(matches!(parse("go west"),      Ok(Command::Go(Direction::West)))); }
+    #[test] fn parse_go_up()        { assert!(matches!(parse("go up"),        Ok(Command::Go(Direction::Up)))); }
+    #[test] fn parse_go_down()      { assert!(matches!(parse("go down"),      Ok(Command::Go(Direction::Down)))); }
+    #[test] fn parse_go_northeast() { assert!(matches!(parse("go northeast"), Ok(Command::Go(Direction::NorthEast)))); }
+    #[test] fn parse_go_northwest() { assert!(matches!(parse("go northwest"), Ok(Command::Go(Direction::NorthWest)))); }
+    #[test] fn parse_go_southeast() { assert!(matches!(parse("go southeast"), Ok(Command::Go(Direction::SouthEast)))); }
+    #[test] fn parse_go_southwest() { assert!(matches!(parse("go southwest"), Ok(Command::Go(Direction::SouthWest)))); }
+    #[test] fn parse_go_short()     { assert!(matches!(parse("go n"),         Ok(Command::Go(Direction::North)))); }
+    #[test] fn parse_go_ne_short()  { assert!(matches!(parse("go ne"),        Ok(Command::Go(Direction::NorthEast)))); }
 
     // --- bare directions ---
-    #[test] fn parse_bare_north() { assert!(matches!(parse("north"), Ok(Command::Go(Direction::North)))); }
-    #[test] fn parse_alias_n()    { assert!(matches!(parse("n"),     Ok(Command::Go(Direction::North)))); }
-    #[test] fn parse_alias_s()    { assert!(matches!(parse("s"),     Ok(Command::Go(Direction::South)))); }
-    #[test] fn parse_alias_e()    { assert!(matches!(parse("e"),     Ok(Command::Go(Direction::East)))); }
-    #[test] fn parse_alias_w()    { assert!(matches!(parse("w"),     Ok(Command::Go(Direction::West)))); }
+    #[test] fn parse_bare_north()     { assert!(matches!(parse("north"),     Ok(Command::Go(Direction::North)))); }
+    #[test] fn parse_bare_northeast() { assert!(matches!(parse("northeast"), Ok(Command::Go(Direction::NorthEast)))); }
+    #[test] fn parse_alias_n()        { assert!(matches!(parse("n"),         Ok(Command::Go(Direction::North)))); }
+    #[test] fn parse_alias_s()        { assert!(matches!(parse("s"),         Ok(Command::Go(Direction::South)))); }
+    #[test] fn parse_alias_e()        { assert!(matches!(parse("e"),         Ok(Command::Go(Direction::East)))); }
+    #[test] fn parse_alias_w()        { assert!(matches!(parse("w"),         Ok(Command::Go(Direction::West)))); }
+    #[test] fn parse_alias_ne()       { assert!(matches!(parse("ne"),        Ok(Command::Go(Direction::NorthEast)))); }
+    #[test] fn parse_alias_nw()       { assert!(matches!(parse("nw"),        Ok(Command::Go(Direction::NorthWest)))); }
+    #[test] fn parse_alias_se()       { assert!(matches!(parse("se"),        Ok(Command::Go(Direction::SouthEast)))); }
+    #[test] fn parse_alias_sw()       { assert!(matches!(parse("sw"),        Ok(Command::Go(Direction::SouthWest)))); }
 
     // --- help ---
     #[test] fn parse_help()       { assert!(matches!(parse("help"),      Ok(Command::Help(None)))); }

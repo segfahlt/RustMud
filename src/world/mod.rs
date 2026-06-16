@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 pub mod fixture;
+pub mod hex;
 pub mod loader;
 pub mod object;
 pub mod room;
@@ -8,10 +9,50 @@ pub mod worldmap;
 pub mod zone;
 
 pub use fixture::Fixture;
+pub use hex::HexCoord;
 pub use object::{ObjectInstance, ObjectRegistry, ObjectTemplate};
 pub use room::{Direction, Room, RoomRef};
 pub use worldmap::WorldMap;
 pub use zone::Zone;
+
+// --- New world-model types (three-tier: Zone → Area / Room) ---
+
+/// Reference to an outdoor Area in the zone grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct AreaRef {
+    pub zone:    HexCoord,
+    pub area_id: u32,
+}
+
+/// Points back to the Permanent fixture that owns an Area→Room gateway.
+/// Used in Room exits so the engine knows which Area to return the player to.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct FixtureRef {
+    pub zone:       HexCoord,
+    pub area_id:    u32,
+    pub fixture_id: String,
+}
+
+/// Destination of a Room exit: either another Room (by global id) or back
+/// to the Area that contains the named gateway fixture.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExitDestination {
+    Room(u32),
+    Fixture(FixtureRef),
+}
+
+/// Area evolution stages driven by visitor traffic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EvolutionStage {
+    Pristine,
+    Marked,
+    Path,
+    Footpath,
+    Trail,
+    Road,
+}
 
 pub struct World {
     zones: HashMap<u32, Zone>,
