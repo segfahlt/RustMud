@@ -446,8 +446,7 @@ mod tests {
             exits: HashMap::from([
                 (Direction::North, AreaRef { zone: HexCoord::new(0, 0), area_id: 2 }),
             ]),
-            fixtures: vec![],
-            objects: vec![],
+            ..Area::default()
         });
         zone.add_area(Area {
             id: 2,
@@ -456,8 +455,7 @@ mod tests {
             exits: HashMap::from([
                 (Direction::South, AreaRef { zone: HexCoord::new(0, 0), area_id: 1 }),
             ]),
-            fixtures: vec![],
-            objects: vec![],
+            ..Area::default()
         });
         world.add_zone(zone);
         let mut state = GameState::new(world);

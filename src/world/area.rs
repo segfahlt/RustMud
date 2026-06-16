@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use super::fixture::Fixture;
-use super::hex::AreaRef;
+use super::hex::{AreaRef, EvolutionStage};
 use super::object::{ObjectInstance, ObjectRegistry};
 use super::room::Direction;
 
 /// An outdoor location within a Zone, navigated via hex directions.
 /// Areas are AI-generated and evolve over time via player traffic.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Area {
     pub id:          u32,
     pub name:        String,
@@ -15,6 +15,21 @@ pub struct Area {
     pub exits:       HashMap<Direction, AreaRef>,
     pub fixtures:    Vec<Fixture>,
     pub objects:     Vec<ObjectInstance>,
+
+    // --- Evolution tracking ---
+    pub evolution_stage: EvolutionStage,
+    /// Hex grid stride used when this area was generated.
+    pub stride:          u32,
+    /// Hex grid offset used when this area was generated.
+    pub offset:          u32,
+    /// Cumulative player visits since area creation.
+    pub visit_count:     u32,
+    /// Visits within the current evolution window (resets on stage change).
+    pub recent_visits:   u32,
+    /// Set when visit thresholds are crossed; cleared after AI regeneration.
+    pub refactor_pending: bool,
+    /// False until the area has received its first AI-generated description.
+    pub generated:        bool,
 }
 
 impl Area {

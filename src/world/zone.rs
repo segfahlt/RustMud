@@ -49,16 +49,12 @@ impl Zone {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     fn make_area(id: u32) -> Area {
         Area {
             id,
             name: format!("Area {id}"),
-            description: String::new(),
-            exits: HashMap::new(),
-            fixtures: vec![],
-            objects: vec![],
+            ..Area::default()
         }
     }
 

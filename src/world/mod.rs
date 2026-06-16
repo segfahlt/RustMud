@@ -180,8 +180,7 @@ mod tests {
             exits: HashMap::from([
                 (Direction::North, AreaRef { zone: coord(0, 0), area_id: 2 }),
             ]),
-            fixtures: vec![],
-            objects: vec![],
+            ..Area::default()
         });
         zone.add_area(Area {
             id: 2,
@@ -190,8 +189,7 @@ mod tests {
             exits: HashMap::from([
                 (Direction::South, AreaRef { zone: coord(0, 0), area_id: 1 }),
             ]),
-            fixtures: vec![],
-            objects: vec![],
+            ..Area::default()
         });
         world.add_zone(zone);
         world
@@ -239,12 +237,10 @@ mod tests {
         zone.add_area(Area {
             id: 1,
             name: "Area".to_string(),
-            description: "".to_string(),
             exits: HashMap::from([
                 (Direction::North, AreaRef { zone: coord(0, 0), area_id: 999 }),
             ]),
-            fixtures: vec![],
-            objects: vec![],
+            ..Area::default()
         });
         world.add_zone(zone);
         assert!(!world.validate().is_empty());

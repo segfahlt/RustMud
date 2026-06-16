@@ -34,9 +34,10 @@ pub enum ExitDestination {
 }
 
 /// Area evolution stages, driven by visitor traffic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum EvolutionStage {
+    #[default]
     Pristine,
     Marked,
     Path,

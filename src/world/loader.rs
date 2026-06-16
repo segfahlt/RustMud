@@ -245,6 +245,7 @@ fn load_zone_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
             exits,
             fixtures: area_file.fixtures,
             objects,
+            ..Area::default()
         });
     }
 
