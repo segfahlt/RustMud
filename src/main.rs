@@ -508,7 +508,8 @@ async fn restore_character(
         p.core.health     = health;
         p.core.max_health = max_health;
         if let Some(cs) = save.characters.get(character_id) {
-            p.inventory = cs.inventory.clone();
+            p.inventory  = cs.inventory.clone();
+            p.last_area  = cs.last_area;
         }
     }
 

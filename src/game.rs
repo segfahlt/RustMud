@@ -37,7 +37,7 @@ impl GameState {
             health:     p.core.health,
             max_health: p.core.max_health,
             inventory:  p.inventory.clone(),
-            last_area:  None,
+            last_area:  p.last_area,
         })
     }
 }
@@ -202,8 +202,9 @@ fn go_direction(dir: Direction, client_id: u32, state: &mut GameState) -> String
                 .get_area(area_ref)
                 .and_then(|area| area.fixtures.iter().find_map(|f| f.connects_to_room));
             if let Some(room_id) = gateway_room {
-                state.players.get_mut(&client_id).unwrap().core.location =
-                    PlayerLocation::room(room_id);
+                let p = state.players.get_mut(&client_id).unwrap();
+                p.last_area = Some(loc);
+                p.core.location = PlayerLocation::room(room_id);
                 return describe_location(client_id, state);
             }
 
@@ -220,9 +221,11 @@ fn go_direction(dir: Direction, client_id: u32, state: &mut GameState) -> String
                     describe_location(client_id, state)
                 }
                 Some(ExitDestination::Fixture(fixture_ref)) => {
-                    let area_ref = AreaRef { zone: fixture_ref.zone, area_id: fixture_ref.area_id };
-                    state.players.get_mut(&client_id).unwrap().core.location =
-                        PlayerLocation::area(area_ref.zone, area_ref.area_id);
+                    let p = state.players.get_mut(&client_id).unwrap();
+                    let return_loc = p.last_area.take().unwrap_or_else(|| {
+                        PlayerLocation::area(fixture_ref.zone, fixture_ref.area_id)
+                    });
+                    p.core.location = return_loc;
                     describe_location(client_id, state)
                 }
                 None => "You can't go that way.\n".to_string(),
@@ -253,8 +256,9 @@ fn enter_fixture(dir: Direction, client_id: u32, state: &mut GameState) -> Strin
 
     match gateway_room {
         Some(room_id) => {
-            state.players.get_mut(&client_id).unwrap().core.location =
-                PlayerLocation::room(room_id);
+            let p = state.players.get_mut(&client_id).unwrap();
+            p.last_area = Some(loc);
+            p.core.location = PlayerLocation::room(room_id);
             describe_location(client_id, state)
         }
         None => "There's nothing to enter here.\n".to_string(),

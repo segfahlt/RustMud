@@ -1,4 +1,4 @@
-use crate::world::ObjectInstance;
+use crate::world::{ObjectInstance, PlayerLocation};
 use super::core::MobCore;
 use super::Mobile;
 
@@ -7,6 +7,9 @@ pub struct Player {
     pub core:         MobCore,
     pub character_id: String,
     pub inventory:    Vec<ObjectInstance>,
+    /// The outdoor Area the player last entered a building from.
+    /// Used to return them to the right spot when they exit.
+    pub last_area:    Option<PlayerLocation>,
 }
 
 impl Player {
@@ -15,6 +18,7 @@ impl Player {
             core,
             character_id: player_id.into(),
             inventory:    vec![],
+            last_area:    None,
         }
     }
 }
