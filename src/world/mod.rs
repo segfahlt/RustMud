@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub mod area;
 pub mod fixture;
 pub mod hex;
 pub mod loader;
@@ -8,54 +9,19 @@ pub mod room;
 pub mod worldmap;
 pub mod zone;
 
+pub use area::Area;
 pub use fixture::Fixture;
-pub use hex::HexCoord;
+pub use hex::{
+    AreaRef, EvolutionStage, ExitDestination, FixtureRef, HexCoord, PlayerLocation,
+};
 pub use object::{ObjectInstance, ObjectRegistry, ObjectTemplate};
-pub use room::{Direction, Room, RoomRef};
+pub use room::{Direction, Room};
 pub use worldmap::WorldMap;
 pub use zone::Zone;
 
-// --- New world-model types (three-tier: Zone → Area / Room) ---
-
-/// Reference to an outdoor Area in the zone grid.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-pub struct AreaRef {
-    pub zone:    HexCoord,
-    pub area_id: u32,
-}
-
-/// Points back to the Permanent fixture that owns an Area→Room gateway.
-/// Used in Room exits so the engine knows which Area to return the player to.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-pub struct FixtureRef {
-    pub zone:       HexCoord,
-    pub area_id:    u32,
-    pub fixture_id: String,
-}
-
-/// Destination of a Room exit: either another Room (by global id) or back
-/// to the Area that contains the named gateway fixture.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ExitDestination {
-    Room(u32),
-    Fixture(FixtureRef),
-}
-
-/// Area evolution stages driven by visitor traffic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum EvolutionStage {
-    Pristine,
-    Marked,
-    Path,
-    Footpath,
-    Trail,
-    Road,
-}
-
 pub struct World {
-    zones: HashMap<u32, Zone>,
+    zones:           HashMap<HexCoord, Zone>,
+    pub rooms:       HashMap<u32, Room>,
     pub object_registry: ObjectRegistry,
     pub world_map:       WorldMap,
 }
@@ -68,52 +34,112 @@ impl World {
     pub fn new() -> Self {
         World {
             zones:           HashMap::new(),
+            rooms:           HashMap::new(),
             object_registry: HashMap::new(),
             world_map:       WorldMap::empty(),
         }
     }
 
+    // --- Zone / Area API ---
+
     pub fn add_zone(&mut self, zone: Zone) {
-        self.zones.insert(zone.id, zone);
+        self.zones.insert(zone.coord, zone);
     }
 
-    pub fn get_zone(&self, zone_id: u32) -> Option<&Zone> {
-        self.zones.get(&zone_id)
+    pub fn get_zone(&self, coord: HexCoord) -> Option<&Zone> {
+        self.zones.get(&coord)
     }
 
-    pub fn get_room(&self, zone_id: u32, room_id: u32) -> Option<&Room> {
-        self.zones.get(&zone_id)?.get_room(room_id)
+    pub fn get_area(&self, area_ref: AreaRef) -> Option<&Area> {
+        self.zones.get(&area_ref.zone)?.get_area(area_ref.area_id)
     }
 
-    pub fn get_room_mut(&mut self, zone_id: u32, room_id: u32) -> Option<&mut Room> {
-        self.zones.get_mut(&zone_id)?.get_room_mut(room_id)
+    pub fn get_area_mut(&mut self, area_ref: AreaRef) -> Option<&mut Area> {
+        self.zones.get_mut(&area_ref.zone)?.get_area_mut(area_ref.area_id)
     }
 
-    // Returns zone IDs in sorted order.
-    pub fn zone_ids(&self) -> Vec<u32> {
-        let mut ids: Vec<u32> = self.zones.keys().copied().collect();
-        ids.sort();
-        ids
+    pub fn zone_coords(&self) -> Vec<HexCoord> {
+        let mut coords: Vec<HexCoord> = self.zones.keys().copied().collect();
+        coords.sort_by_key(|c| (c.q, c.r));
+        coords
     }
 
-    // Checks that every exit RoomRef points to a room that actually exists.
-    // Returns a list of error strings — empty means the world is consistent.
+    pub fn get_zone_name(&self, coord: HexCoord) -> Option<&str> {
+        self.zones.get(&coord).map(|z| z.name.as_str())
+    }
+
+    // --- Room API ---
+
+    pub fn add_room(&mut self, room: Room) {
+        self.rooms.insert(room.id, room);
+    }
+
+    pub fn get_room(&self, room_id: u32) -> Option<&Room> {
+        self.rooms.get(&room_id)
+    }
+
+    pub fn get_room_mut(&mut self, room_id: u32) -> Option<&mut Room> {
+        self.rooms.get_mut(&room_id)
+    }
+
+    // --- Validation ---
+
+    // Checks that all Area exits point to existing Areas,
+    // and all Room exits point to existing Rooms or valid FixtureRefs.
     pub fn validate(&self) -> Vec<String> {
         let mut errors = Vec::new();
-        for zone_id in self.zone_ids() {
-            let zone = self.get_zone(zone_id).unwrap();
-            for room_id in zone.room_ids() {
-                let room = self.get_room(zone_id, room_id).unwrap();
-                for (dir, dest) in &room.exits {
-                    if self.get_room(dest.zone_id, dest.room_id).is_none() {
+
+        for coord in self.zone_coords() {
+            let zone = self.get_zone(coord).unwrap();
+            for area_id in zone.area_ids() {
+                let area_ref = AreaRef { zone: coord, area_id };
+                let area = self.get_area(area_ref).unwrap();
+                for (dir, dest) in &area.exits {
+                    if self.get_area(*dest).is_none() {
                         errors.push(format!(
-                            "Zone {} Room {} exit {:?}: points to missing zone={} room={}",
-                            zone_id, room_id, dir, dest.zone_id, dest.room_id
+                            "Area ({},{}) id={} exit {:?}: points to missing area zone=({},{}) id={}",
+                            coord.q, coord.r, area_id, dir,
+                            dest.zone.q, dest.zone.r, dest.area_id
                         ));
                     }
                 }
             }
         }
+
+        for room_id in self.rooms.keys() {
+            let room = self.get_room(*room_id).unwrap();
+            for (dir, dest) in &room.exits {
+                match dest {
+                    ExitDestination::Room { room_id: target_id } => {
+                        if self.get_room(*target_id).is_none() {
+                            errors.push(format!(
+                                "Room {} exit {:?}: points to missing room {}",
+                                room_id, dir, target_id
+                            ));
+                        }
+                    }
+                    ExitDestination::Fixture(fixture_ref) => {
+                        let area_ref = AreaRef { zone: fixture_ref.zone, area_id: fixture_ref.area_id };
+                        if let Some(area) = self.get_area(area_ref) {
+                            if !area.fixtures.iter().any(|f| f.id == fixture_ref.fixture_id) {
+                                errors.push(format!(
+                                    "Room {} exit {:?}: fixture '{}' not found in area ({},{}) id={}",
+                                    room_id, dir, fixture_ref.fixture_id,
+                                    fixture_ref.zone.q, fixture_ref.zone.r, fixture_ref.area_id
+                                ));
+                            }
+                        } else {
+                            errors.push(format!(
+                                "Room {} exit {:?}: fixture ref points to missing area ({},{}) id={}",
+                                room_id, dir,
+                                fixture_ref.zone.q, fixture_ref.zone.r, fixture_ref.area_id
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
         errors
     }
 }
@@ -123,25 +149,27 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
+    fn coord(q: i32, r: i32) -> HexCoord { HexCoord::new(q, r) }
+
     fn make_world() -> World {
         let mut world = World::new();
-        let mut zone = Zone::new(1, "Test Zone", "A test zone.");
-        zone.add_room(Room {
+        let mut zone = Zone::new(coord(0, 0), "Test Zone", "A test zone.");
+        zone.add_area(Area {
             id: 1,
-            name: "Room One".to_string(),
-            description: "First room.".to_string(),
+            name: "Area One".to_string(),
+            description: "First area.".to_string(),
             exits: HashMap::from([
-                (Direction::North, RoomRef { zone_id: 1, room_id: 2 }),
+                (Direction::North, AreaRef { zone: coord(0, 0), area_id: 2 }),
             ]),
             fixtures: vec![],
             objects: vec![],
         });
-        zone.add_room(Room {
+        zone.add_area(Area {
             id: 2,
-            name: "Room Two".to_string(),
-            description: "Second room.".to_string(),
+            name: "Area Two".to_string(),
+            description: "Second area.".to_string(),
             exits: HashMap::from([
-                (Direction::South, RoomRef { zone_id: 1, room_id: 1 }),
+                (Direction::South, AreaRef { zone: coord(0, 0), area_id: 1 }),
             ]),
             fixtures: vec![],
             objects: vec![],
@@ -151,27 +179,33 @@ mod tests {
     }
 
     #[test]
-    fn get_existing_room() {
-        assert!(make_world().get_room(1, 1).is_some());
+    fn get_existing_area() {
+        let w = make_world();
+        assert!(w.get_area(AreaRef { zone: coord(0, 0), area_id: 1 }).is_some());
     }
 
     #[test]
-    fn get_missing_room_returns_none() {
-        assert!(make_world().get_room(1, 99).is_none());
+    fn get_missing_area_returns_none() {
+        let w = make_world();
+        assert!(w.get_area(AreaRef { zone: coord(0, 0), area_id: 99 }).is_none());
     }
 
     #[test]
     fn get_missing_zone_returns_none() {
-        assert!(make_world().get_room(99, 1).is_none());
+        let w = make_world();
+        assert!(w.get_area(AreaRef { zone: coord(99, 99), area_id: 1 }).is_none());
     }
 
     #[test]
-    fn zone_ids_are_sorted() {
+    fn zone_coords_are_sorted() {
         let mut world = World::new();
-        world.add_zone(Zone::new(3, "C", ""));
-        world.add_zone(Zone::new(1, "A", ""));
-        world.add_zone(Zone::new(2, "B", ""));
-        assert_eq!(world.zone_ids(), vec![1, 2, 3]);
+        world.add_zone(Zone::new(coord(3, 0), "C", ""));
+        world.add_zone(Zone::new(coord(1, 0), "A", ""));
+        world.add_zone(Zone::new(coord(2, 0), "B", ""));
+        let coords = world.zone_coords();
+        assert_eq!(coords[0], coord(1, 0));
+        assert_eq!(coords[1], coord(2, 0));
+        assert_eq!(coords[2], coord(3, 0));
     }
 
     #[test]
@@ -180,15 +214,15 @@ mod tests {
     }
 
     #[test]
-    fn validate_detects_dead_exit() {
+    fn validate_detects_dead_area_exit() {
         let mut world = World::new();
-        let mut zone = Zone::new(1, "Zone", "");
-        zone.add_room(Room {
+        let mut zone = Zone::new(coord(0, 0), "Zone", "");
+        zone.add_area(Area {
             id: 1,
-            name: "Room".to_string(),
+            name: "Area".to_string(),
             description: "".to_string(),
             exits: HashMap::from([
-                (Direction::North, RoomRef { zone_id: 1, room_id: 999 }),
+                (Direction::North, AreaRef { zone: coord(0, 0), area_id: 999 }),
             ]),
             fixtures: vec![],
             objects: vec![],

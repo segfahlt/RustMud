@@ -1,0 +1,59 @@
+{
+  "id": "shuttle_perihelion",
+  "name": "The Perihelion",
+  "breadcrumb_zone": "Arrival",
+  "breadcrumb_building": "The Perihelion",
+  "object_templates": [
+    {
+      "id": "perihelion_manifest",
+      "names": ["manifest", "transit manifest", "perihelion manifest"],
+      "short": "a transit manifest",
+      "room_look": "A folded transit manifest lies on the floor.",
+      "description": "A printed form from the Perihelion — passenger manifest, cargo declaration, customs disclosure. Your name is in here somewhere, among six hundred and forty. The date at the top predates landing by six months. It already feels like another century.",
+      "category": "data",
+      "weight": "tiny",
+      "flags": ["EARTH_ORIGIN"],
+      "value": 0
+    }
+  ],
+  "rooms": [
+    {
+      "id": 1,
+      "name": "Cryo-Bay",
+      "description": "Row upon row of cryo-pods line the walls, most still sealed. A few stand open — the early risers from this transit. The air smells of glycerol and recycled oxygen, clinical and cold. Emergency lighting casts everything pale blue. Your muscles ache in ways you don't have words for yet.",
+      "exits": {
+        "east": { "type": "room", "room_id": 2 }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Cargo Bay 3",
+      "description": "A long room of numbered metal lockers, each dented by the hands and hopes of whoever packed it. Yours is here. Overhead lights buzz at a frequency that sets your teeth on edge. Cold air and cryogenic hiss leak back through the passage to the west. The pressure door to the east stands open.",
+      "objects": [
+        { "template_id": "perihelion_manifest" }
+      ],
+      "exits": {
+        "west": { "type": "room", "room_id": 1 },
+        "east": { "type": "room", "room_id": 3 }
+      }
+    },
+    {
+      "id": 3,
+      "name": "Shuttle Corridor",
+      "description": "A narrow passage with scuff marks on the deck from every boot that came before yours. A hand-printed sign reads: PERSONAL WEAPONS MUST BE DECLARED TO CORPORATE SECURITY UPON ARRIVAL. Someone has added beneath it in red marker: GOOD LUCK WITH THAT. Daylight — alien, the wrong color — bleeds in from the hatch below to the south. Storage space extends north.",
+      "exits": {
+        "north": { "type": "room", "room_id": 2 },
+        "south": { "type": "room", "room_id": 4 }
+      }
+    },
+    {
+      "id": 4,
+      "name": "Disembarkation Ramp",
+      "description": "The ramp angles down from the shuttle hatch to the dock below. Through the open hatch, you see it for the first time — a sky the wrong shade of violet, lit from an angle that doesn't match any sunrise you grew up with. And there, low on the horizon, a darkness ringed with white fire. The briefings didn't prepare you for the scale of it. It watches. The ship's pressurized interior is back through the hatch to the north.",
+      "exits": {
+        "north": { "type": "room", "room_id": 3 },
+        "south": { "type": "fixture", "zone": {"q": 0, "r": 1}, "area_id": 5, "fixture_id": "shuttle_hatch" }
+      }
+    }
+  ]
+}

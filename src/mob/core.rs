@@ -1,18 +1,18 @@
-use crate::world::RoomRef;
+use crate::world::PlayerLocation;
 
-// Shared data carried by every mob, regardless of type.
-// Each concrete mob type (Player, Npc, Monster) embeds one of these.
+/// Shared data carried by every mob, regardless of type.
+/// Each concrete mob type (Player, Npc, Monster) embeds one of these.
 #[derive(Debug)]
 pub struct MobCore {
-    pub id: u32,
-    pub name: String,
-    pub health: u32,
+    pub id:         u32,
+    pub name:       String,
+    pub health:     u32,
     pub max_health: u32,
-    pub location: RoomRef,
+    pub location:   PlayerLocation,
 }
 
 impl MobCore {
-    pub fn new(id: u32, name: impl Into<String>, health: u32, location: RoomRef) -> Self {
+    pub fn new(id: u32, name: impl Into<String>, health: u32, location: PlayerLocation) -> Self {
         MobCore {
             id,
             name: name.into(),
@@ -26,9 +26,11 @@ impl MobCore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::RoomRef;
+    use crate::world::{AreaRef, HexCoord};
 
-    fn loc() -> RoomRef { RoomRef { zone_id: 1, room_id: 1 } }
+    fn loc() -> PlayerLocation {
+        PlayerLocation::area(HexCoord::new(0, 1), 1)
+    }
 
     #[test]
     fn new_sets_max_health_equal_to_health() {
@@ -48,5 +50,15 @@ mod tests {
         let name = String::from("Owned");
         let core = MobCore::new(1, name, 10, loc());
         assert_eq!(core.name, "Owned");
+    }
+
+    #[test]
+    fn location_is_area() {
+        let core = MobCore::new(1, "Test", 100, loc());
+        assert!(core.location.as_area_ref().is_some());
+        assert_eq!(core.location.as_area_ref().unwrap(), AreaRef {
+            zone: HexCoord::new(0, 1),
+            area_id: 1,
+        });
     }
 }

@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use super::hex::EvolutionStage;
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FixtureCategory {
@@ -13,6 +15,21 @@ pub enum FixtureCategory {
     Toggle,
     Commerce,
     Coherence,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FixturePermanence {
+    /// Permanent fixtures block Area devolution below `minimum_stage`.
+    /// Examples: buildings, wells, walls.
+    Permanent,
+    /// Degradable fixtures can be removed by devolution without dissonance.
+    /// Examples: fire pits, lean-tos, caches.
+    Degradable,
+}
+
+impl Default for FixturePermanence {
+    fn default() -> Self { FixturePermanence::Degradable }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -48,6 +65,17 @@ pub struct Fixture {
     /// If true, state key is the global Coherence threat level instead of fixture.state.current.
     #[serde(default)]
     pub coherence_driven: bool,
+    /// Whether this fixture blocks Area devolution. Permanent fixtures anchor the Area's minimum stage.
+    #[serde(default)]
+    pub permanence: FixturePermanence,
+    /// Permanent fixtures set this to the lowest EvolutionStage the Area may devolve to.
+    /// Ignored for Degradable fixtures.
+    #[serde(default)]
+    pub minimum_stage: Option<EvolutionStage>,
+    /// If set, entering this fixture moves the player into the named Room cluster.
+    /// The Room ID here is the entry point (e.g., the lobby or gate interior).
+    #[serde(default)]
+    pub connects_to_room: Option<u32>,
 }
 
 impl Fixture {

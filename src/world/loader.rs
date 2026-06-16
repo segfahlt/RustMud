@@ -7,14 +7,15 @@ use std::path::{Path, PathBuf};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use super::area::Area;
 use super::fixture::Fixture;
+use super::hex::{AreaRef, ExitDestination, HexCoord};
 use super::object::{ObjectInstance, ObjectTemplate};
-use super::room::Direction;
-use super::{Room, RoomRef, World, WorldMap, Zone};
+use super::room::{Direction, Room};
+use super::{World, WorldMap, Zone};
 
 // --- File format structs ---
 // Public so the schema binary can generate JSON Schema from them.
-// The rest of the game still works through World/Zone/Room — never these directly.
 
 /// Minimal object reference in a zone file: spawns one instance of the named template.
 #[derive(Deserialize, JsonSchema)]
@@ -23,12 +24,12 @@ pub struct ObjectSpawnFile {
 }
 
 #[derive(Deserialize, JsonSchema)]
-pub struct RoomFile {
+pub struct AreaFile {
     pub id: u32,
     pub name: String,
     pub description: String,
     #[serde(default)]
-    pub exits: HashMap<String, RoomRef>,
+    pub exits: HashMap<String, AreaRef>,
     #[serde(default)]
     pub fixtures: Vec<Fixture>,
     #[serde(default)]
@@ -37,13 +38,52 @@ pub struct RoomFile {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ZoneFile {
-    pub id: u32,
-    pub name: String,
-    pub description: String,
-    pub rooms: Vec<RoomFile>,
-    /// Templates defined here are available to all rooms in this zone.
+    pub q:            i32,
+    pub r:            i32,
+    pub name:         String,
+    pub description:  String,
+    #[serde(default)]
+    pub biome_origin: String,
+    #[serde(default = "default_coherence")]
+    pub coherence:    u8,
+    #[serde(default = "default_radius")]
+    pub radius_steps: u8,
+    pub areas:        Vec<AreaFile>,
     #[serde(default)]
     pub object_templates: Vec<ObjectTemplate>,
+}
+
+fn default_coherence() -> u8 { 50 }
+fn default_radius() -> u8 { 1 }
+
+// --- Building file format (data/buildings/*.json) ---
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RoomFile {
+    pub id:          u32,
+    pub name:        String,
+    pub description: String,
+    #[serde(default)]
+    pub breadcrumb_zone:     String,
+    #[serde(default)]
+    pub breadcrumb_building: String,
+    #[serde(default)]
+    pub exits:    HashMap<String, ExitDestination>,
+    #[serde(default)]
+    pub fixtures: Vec<Fixture>,
+    #[serde(default)]
+    pub objects:  Vec<ObjectSpawnFile>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct BuildingFile {
+    pub id:                  String,
+    pub name:                String,
+    pub breadcrumb_zone:     String,
+    pub breadcrumb_building: String,
+    pub rooms:               Vec<RoomFile>,
+    #[serde(default)]
+    pub object_templates:    Vec<ObjectTemplate>,
 }
 
 // --- LoadError ---
@@ -52,8 +92,10 @@ pub struct ZoneFile {
 pub enum LoadError {
     Io(io::Error),
     Json { path: PathBuf, source: serde_json::Error },
-    UnknownDirection { path: PathBuf, room_id: u32, direction: String },
-    UnknownTemplate { path: PathBuf, room_id: u32, template_id: String },
+    UnknownDirection { path: PathBuf, area_id: u32, direction: String },
+    UnknownRoomDirection { path: PathBuf, room_id: u32, direction: String },
+    UnknownTemplate { path: PathBuf, area_id: u32, template_id: String },
+    DuplicateRoom { path: PathBuf, room_id: u32 },
     InvalidWorld(Vec<String>),
 }
 
@@ -64,13 +106,20 @@ impl fmt::Display for LoadError {
             LoadError::Json { path, source } => {
                 write!(f, "JSON error in {}: {}", path.display(), source)
             }
-            LoadError::UnknownDirection { path, room_id, direction } => {
+            LoadError::UnknownDirection { path, area_id, direction } => {
+                write!(f, "In {}: area {}: unknown direction '{}'",
+                    path.display(), area_id, direction)
+            }
+            LoadError::UnknownRoomDirection { path, room_id, direction } => {
                 write!(f, "In {}: room {}: unknown direction '{}'",
                     path.display(), room_id, direction)
             }
-            LoadError::UnknownTemplate { path, room_id, template_id } => {
-                write!(f, "In {}: room {}: unknown template '{}'",
-                    path.display(), room_id, template_id)
+            LoadError::UnknownTemplate { path, area_id, template_id } => {
+                write!(f, "In {}: area {}: unknown template '{}'",
+                    path.display(), area_id, template_id)
+            }
+            LoadError::DuplicateRoom { path, room_id } => {
+                write!(f, "In {}: room id {} already registered", path.display(), room_id)
             }
             LoadError::InvalidWorld(errors) => {
                 write!(f, "World validation failed:\n  {}", errors.join("\n  "))
@@ -88,18 +137,30 @@ impl From<io::Error> for LoadError {
 // --- Public API ---
 
 pub fn load_world(data_dir: &Path) -> Result<World, LoadError> {
-    let zones_dir = data_dir.join("zones");
+    let mut world = World::new();
 
-    let mut paths: Vec<PathBuf> = fs::read_dir(&zones_dir)?
+    let zones_dir = data_dir.join("zones");
+    let mut zone_paths: Vec<PathBuf> = fs::read_dir(&zones_dir)?
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
         .filter(|p| p.extension().map_or(false, |ext| ext == "json"))
         .collect();
-    paths.sort();
-
-    let mut world = World::new();
-    for path in paths {
+    zone_paths.sort();
+    for path in zone_paths {
         load_zone_into(&path, &mut world)?;
+    }
+
+    let buildings_dir = data_dir.join("buildings");
+    if buildings_dir.exists() {
+        let mut building_paths: Vec<PathBuf> = fs::read_dir(&buildings_dir)?
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|p| p.extension().map_or(false, |ext| ext == "json"))
+            .collect();
+        building_paths.sort();
+        for path in building_paths {
+            load_building_into(&path, &mut world)?;
+        }
     }
 
     world.world_map = load_worldmap(data_dir);
@@ -127,53 +188,115 @@ fn load_zone_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
     let zone_file: ZoneFile = serde_json::from_str(&content)
         .map_err(|e| LoadError::Json { path: path.to_path_buf(), source: e })?;
 
-    // Register this zone's templates in the global registry.
     for tmpl in zone_file.object_templates {
         world.object_registry.insert(tmpl.id.clone(), tmpl);
     }
 
-    let mut zone = Zone::new(zone_file.id, zone_file.name, zone_file.description);
+    let coord = HexCoord::new(zone_file.q, zone_file.r);
+    let mut zone = Zone::new(coord, zone_file.name, zone_file.description);
+    zone.biome_origin = zone_file.biome_origin;
+    zone.coherence    = zone_file.coherence;
+    zone.radius_steps = zone_file.radius_steps;
 
-    for room_file in zone_file.rooms {
-        let room_id = room_file.id;
+    for area_file in zone_file.areas {
+        let area_id = area_file.id;
         let mut exits = HashMap::new();
 
-        for (dir_str, room_ref) in room_file.exits {
-            let dir = match dir_str.parse::<Direction>() {
-                Ok(d) => d,
-                Err(_) => return Err(LoadError::UnknownDirection {
-                    path: path.to_path_buf(),
-                    room_id,
-                    direction: dir_str,
-                }),
-            };
-            exits.insert(dir, room_ref);
+        for (dir_str, area_ref) in area_file.exits {
+            let dir = dir_str.parse::<Direction>().map_err(|_| LoadError::UnknownDirection {
+                path: path.to_path_buf(),
+                area_id,
+                direction: dir_str,
+            })?;
+            exits.insert(dir, area_ref);
         }
 
-        // Spawn object instances from template references.
         let mut objects = Vec::new();
-        for spawn in room_file.objects {
+        for spawn in area_file.objects {
             if !world.object_registry.contains_key(&spawn.template_id) {
                 return Err(LoadError::UnknownTemplate {
                     path: path.to_path_buf(),
-                    room_id,
+                    area_id,
                     template_id: spawn.template_id,
                 });
             }
             objects.push(ObjectInstance::new(spawn.template_id));
         }
 
-        zone.add_room(Room {
+        zone.add_area(Area {
+            id: area_id,
+            name: area_file.name,
+            description: area_file.description,
+            exits,
+            fixtures: area_file.fixtures,
+            objects,
+        });
+    }
+
+    world.add_zone(zone);
+    Ok(())
+}
+
+fn load_building_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
+    let content = fs::read_to_string(path)?;
+    let building: BuildingFile = serde_json::from_str(&content)
+        .map_err(|e| LoadError::Json { path: path.to_path_buf(), source: e })?;
+
+    for tmpl in building.object_templates {
+        world.object_registry.insert(tmpl.id.clone(), tmpl);
+    }
+
+    for room_file in building.rooms {
+        let room_id = room_file.id;
+        if world.rooms.contains_key(&room_id) {
+            return Err(LoadError::DuplicateRoom { path: path.to_path_buf(), room_id });
+        }
+
+        let mut exits = HashMap::new();
+        for (dir_str, dest) in room_file.exits {
+            let dir = dir_str.parse::<Direction>().map_err(|_| LoadError::UnknownRoomDirection {
+                path: path.to_path_buf(),
+                room_id,
+                direction: dir_str,
+            })?;
+            exits.insert(dir, dest);
+        }
+
+        let mut objects = Vec::new();
+        for spawn in room_file.objects {
+            if !world.object_registry.contains_key(&spawn.template_id) {
+                return Err(LoadError::UnknownTemplate {
+                    path: path.to_path_buf(),
+                    area_id: room_id,
+                    template_id: spawn.template_id,
+                });
+            }
+            objects.push(ObjectInstance::new(spawn.template_id));
+        }
+
+        let zone_label = if room_file.breadcrumb_zone.is_empty() {
+            building.breadcrumb_zone.clone()
+        } else {
+            room_file.breadcrumb_zone
+        };
+        let bldg_label = if room_file.breadcrumb_building.is_empty() {
+            building.breadcrumb_building.clone()
+        } else {
+            room_file.breadcrumb_building
+        };
+
+        world.add_room(Room {
             id: room_id,
             name: room_file.name,
             description: room_file.description,
+            breadcrumb_zone: zone_label,
+            breadcrumb_building: bldg_label,
             exits,
             fixtures: room_file.fixtures,
             objects,
         });
     }
 
-    world.add_zone(zone);
     Ok(())
 }
 
@@ -186,38 +309,41 @@ mod tests {
 
     #[test]
     fn deserialize_minimal_zone() {
-        let json = r#"{ "id": 1, "name": "Z", "description": "D", "rooms": [] }"#;
+        let json = r#"{ "q": 0, "r": 0, "name": "Z", "description": "D", "areas": [] }"#;
         let zf: ZoneFile = serde_json::from_str(json).unwrap();
-        assert_eq!(zf.id, 1);
+        assert_eq!(zf.q, 0);
+        assert_eq!(zf.r, 0);
         assert_eq!(zf.name, "Z");
-        assert!(zf.rooms.is_empty());
+        assert!(zf.areas.is_empty());
         assert!(zf.object_templates.is_empty());
     }
 
     #[test]
-    fn deserialize_room_with_exits() {
+    fn deserialize_area_with_exits() {
         let json = r#"{
             "id": 1, "name": "R", "description": "D",
-            "exits": { "north": { "zone_id": 2, "room_id": 5 } }
+            "exits": { "north": { "zone": { "q": 0, "r": 0 }, "area_id": 2 } }
         }"#;
-        let rf: RoomFile = serde_json::from_str(json).unwrap();
-        let dest = rf.exits.get("north").unwrap();
-        assert_eq!(dest.zone_id, 2);
-        assert_eq!(dest.room_id, 5);
+        let af: AreaFile = serde_json::from_str(json).unwrap();
+        let dest = af.exits.get("north").unwrap();
+        assert_eq!(dest.zone.q, 0);
+        assert_eq!(dest.zone.r, 0);
+        assert_eq!(dest.area_id, 2);
     }
 
     #[test]
-    fn deserialize_room_missing_exits_defaults_to_empty() {
+    fn deserialize_area_missing_exits_defaults_to_empty() {
         let json = r#"{ "id": 1, "name": "Dead End", "description": "." }"#;
-        let rf: RoomFile = serde_json::from_str(json).unwrap();
-        assert!(rf.exits.is_empty());
+        let af: AreaFile = serde_json::from_str(json).unwrap();
+        assert!(af.exits.is_empty());
     }
 
     #[test]
     fn load_world_succeeds_and_passes_validation() {
         let world = load_world(Path::new("data")).expect("world should load from data/");
-        assert!(world.get_room(1, 1).is_some(), "Cryo-Bay (zone 1, room 1) should exist");
-        assert!(world.get_room(2, 2).is_some(), "Intake Lobby (zone 2, room 2) should exist");
+        assert!(world.get_room(1).is_some(), "Cryo-Bay (room 1) should exist as a building room");
+        let harbor = AreaRef { zone: HexCoord::new(0, 1), area_id: 5 };
+        assert!(world.get_area(harbor).is_some(), "Harbor Dock (zone q=0,r=1, area 5) should exist");
         assert!(world.validate().is_empty(), "loaded world should be valid");
     }
 }

@@ -98,6 +98,13 @@ impl Registry {
                 parse: parse_go,
             },
             CommandDef {
+                name: "enter", priority: 10, aliases: &[],
+                category: Category::Movement,
+                usage: "enter <direction>",
+                description: "Enter a building fixture when a regular exit also exists.",
+                parse: parse_enter,
+            },
+            CommandDef {
                 name: "north", priority: 5, aliases: &[],
                 category: Category::Movement,
                 usage: "north",
@@ -322,6 +329,16 @@ fn parse_go(rest: &str) -> Result<Command, ParseError> {
     }
     match prefix_match_direction(rest) {
         Some(dir) => Ok(Command::Go(dir)),
+        None      => Err(ParseError::UnknownDirection(rest.to_string())),
+    }
+}
+
+fn parse_enter(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingDirection);
+    }
+    match prefix_match_direction(rest) {
+        Some(dir) => Ok(Command::Enter(dir)),
         None      => Err(ParseError::UnknownDirection(rest.to_string())),
     }
 }

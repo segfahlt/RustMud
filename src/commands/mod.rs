@@ -14,10 +14,11 @@ pub enum Command {
     Look(Option<Direction>),    // look | look <dir>
     Examine(String),            // look at <thing> | examine <thing>
     Go(Direction),
+    Enter(Direction),           // enter <dir> — enter a fixture when area exit also exists
     Get(String),                // get <thing>
     Drop(String),               // drop <thing>
     Inventory,                  // inventory | i
-    WorldMap,                    // wmap | worldmap
+    WorldMap,                   // wmap | worldmap
     Help(Option<String>),       // help | help <topic>
     Quit,
     Shutdown,                   // kill game + gateway  [Admin]

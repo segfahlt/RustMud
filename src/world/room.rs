@@ -2,10 +2,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
 use super::fixture::Fixture;
+use super::hex::ExitDestination;
 use super::object::{ObjectInstance, ObjectRegistry};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -62,21 +60,19 @@ impl FromStr for Direction {
     }
 }
 
-// Deserialize added so serde can read RoomRef values from JSON exit objects.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct RoomRef {
-    pub zone_id: u32,
-    pub room_id: u32,
-}
-
+/// A globally registered indoor location: settlement rooms, buildings, dungeons.
+/// Rooms are human-authored, identified by a server-assigned sequential ID.
+/// Builder sets breadcrumb_zone and breadcrumb_building for location display.
 #[derive(Debug)]
 pub struct Room {
-    pub id:          u32,
-    pub name:        String,
-    pub description: String,
-    pub exits:       HashMap<Direction, RoomRef>,
-    pub fixtures:    Vec<Fixture>,
-    pub objects:     Vec<ObjectInstance>,
+    pub id:                   u32,
+    pub name:                 String,
+    pub description:          String,
+    pub breadcrumb_zone:      String,
+    pub breadcrumb_building:  String,
+    pub exits:                HashMap<Direction, ExitDestination>,
+    pub fixtures:             Vec<Fixture>,
+    pub objects:              Vec<ObjectInstance>,
 }
 
 impl Room {
@@ -84,17 +80,19 @@ impl Room {
         let exits = if self.exits.is_empty() {
             "none".to_string()
         } else {
-            let mut dirs: Vec<String> = self.exits
-                .keys()
-                .map(|dir| dir.to_string())
-                .collect();
+            let mut dirs: Vec<String> = self.exits.keys().map(|d| d.to_string()).collect();
             dirs.sort();
             dirs.join(", ")
         };
 
-        let mut out = format!("[ {} ]\n{}", self.name, self.description);
+        let header = if self.breadcrumb_building.is_empty() {
+            format!("[ {} > {} ]", self.breadcrumb_zone, self.name)
+        } else {
+            format!("[ {} > {} > {} ]", self.breadcrumb_zone, self.breadcrumb_building, self.name)
+        };
 
-        // Fixture state lines and room object lines go between description and exits.
+        let mut out = format!("{}\n{}", header, self.description);
+
         let mut extras = Vec::new();
         for fixture in &self.fixtures {
             let line = fixture.state_line();

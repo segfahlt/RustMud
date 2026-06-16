@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::commands::{help_text, Command};
 use crate::mob::{MobCore, Player};
 use crate::persist::CharacterSave;
-use crate::world::{Direction, ObjectInstance, RoomRef, World};
+use crate::world::{Area, AreaRef, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
 
 pub struct GameState {
     pub world:   World,
@@ -15,7 +15,13 @@ impl GameState {
         GameState { world, players: HashMap::new() }
     }
 
-    pub fn add_player(&mut self, client_id: u32, character_id: &str, name: &str, location: RoomRef) {
+    pub fn add_player(
+        &mut self,
+        client_id:    u32,
+        character_id: &str,
+        name:         &str,
+        location:     PlayerLocation,
+    ) {
         let core = MobCore::new(client_id, name, 100, location);
         self.players.insert(client_id, Player::new(core, character_id));
     }
@@ -27,13 +33,25 @@ impl GameState {
     pub fn snapshot_character(&self, client_id: u32) -> Option<CharacterSave> {
         let p = self.players.get(&client_id)?;
         Some(CharacterSave {
-            zone_id:    p.core.location.zone_id,
-            room_id:    p.core.location.room_id,
+            location:   p.core.location,
             health:     p.core.health,
             max_health: p.core.max_health,
             inventory:  p.inventory.clone(),
+            last_area:  None,
         })
     }
+}
+
+/// Area mode (outdoor): only hex directions. Room mode: all 10 directions.
+fn is_valid_direction(dir: Direction, in_area: bool) -> bool {
+    if !in_area {
+        return true; // Rooms allow all 10 directions
+    }
+    matches!(dir,
+        Direction::North | Direction::South |
+        Direction::NorthEast | Direction::NorthWest |
+        Direction::SouthEast | Direction::SouthWest
+    )
 }
 
 // Returns (output_text, keep_playing).
@@ -43,6 +61,7 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Look(Some(dir)) => (look_direction(dir, client_id, state), true),
         Command::Examine(target) => (cmd_examine(&target, client_id, state), true),
         Command::Go(dir)         => (go_direction(dir, client_id, state), true),
+        Command::Enter(dir)      => (enter_fixture(dir, client_id, state), true),
         Command::Get(target)     => (cmd_get(&target, client_id, state), true),
         Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
         Command::Inventory       => (cmd_inventory(client_id, state), true),
@@ -60,11 +79,58 @@ pub fn describe_location(client_id: u32, state: &GameState) -> String {
         Some(p) => p,
         None    => return "(You don't exist. This is a bug.)\n".to_string(),
     };
-    let loc = player.core.location;
-    match state.world.get_room(loc.zone_id, loc.room_id) {
-        Some(room) => room.render(&state.world.object_registry),
-        None       => "(You are nowhere. This is a bug.)\n".to_string(),
+    match player.core.location {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+            match state.world.get_area(area_ref) {
+                Some(area) => {
+                    let zone_name = state.world.get_zone_name(area_ref.zone).unwrap_or("Unknown");
+                    render_area(area, zone_name, &state.world.object_registry)
+                }
+                None => "(You are nowhere. This is a bug.)\n".to_string(),
+            }
+        }
+        PlayerLocation::Room { room_id } => {
+            match state.world.get_room(room_id) {
+                Some(room) => room.render(&state.world.object_registry),
+                None       => "(You are in an unregistered room. This is a bug.)\n".to_string(),
+            }
+        }
     }
+}
+
+fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegistry) -> String {
+    let exits = if area.exits.is_empty() {
+        "none".to_string()
+    } else {
+        let mut dirs: Vec<String> = area.exits.keys().map(|d| d.to_string()).collect();
+        dirs.sort();
+        dirs.join(", ")
+    };
+
+    let header = format!("[ {} > {} ]", zone_name, area.name);
+    let mut out = format!("{}\n{}", header, area.description);
+
+    let mut extras = Vec::new();
+    for fixture in &area.fixtures {
+        let line = fixture.state_line();
+        if !line.is_empty() {
+            extras.push(line.to_string());
+        }
+    }
+    for obj in &area.objects {
+        extras.push(obj.room_look(registry).to_string());
+    }
+    if !extras.is_empty() {
+        out.push('\n');
+        for line in extras {
+            out.push('\n');
+            out.push_str(&line);
+        }
+    }
+
+    out.push_str(&format!("\nExits: {}\n", exits));
+    out
 }
 
 fn look_direction(dir: Direction, client_id: u32, state: &GameState) -> String {
@@ -72,17 +138,39 @@ fn look_direction(dir: Direction, client_id: u32, state: &GameState) -> String {
         Some(p) => p,
         None    => return "(You don't exist. This is a bug.)\n".to_string(),
     };
-    let loc = player.core.location;
-    let room = match state.world.get_room(loc.zone_id, loc.room_id) {
-        Some(r) => r,
-        None    => return "(You are nowhere. This is a bug.)\n".to_string(),
-    };
-    match room.exits.get(&dir) {
-        Some(dest) => match state.world.get_room(dest.zone_id, dest.room_id) {
-            Some(dest_room) => format!("To the {}: {}\n", dir, dest_room.name),
-            None            => String::new(),
-        },
-        None => format!("There is nothing to the {}.\n", dir),
+    match player.core.location {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+            let area = match state.world.get_area(area_ref) {
+                Some(a) => a,
+                None    => return "(You are nowhere. This is a bug.)\n".to_string(),
+            };
+            match area.exits.get(&dir) {
+                Some(dest) => match state.world.get_area(*dest) {
+                    Some(dest_area) => format!("To the {}: {}\n", dir, dest_area.name),
+                    None            => String::new(),
+                },
+                None => format!("There is nothing to the {}.\n", dir),
+            }
+        }
+        PlayerLocation::Room { room_id } => {
+            let room = match state.world.get_room(room_id) {
+                Some(r) => r,
+                None    => return "(You are nowhere. This is a bug.)\n".to_string(),
+            };
+            match room.exits.get(&dir) {
+                Some(ExitDestination::Room { room_id: dest_id }) => {
+                    match state.world.get_room(*dest_id) {
+                        Some(dest_room) => format!("To the {}: {}\n", dir, dest_room.name),
+                        None            => String::new(),
+                    }
+                }
+                Some(ExitDestination::Fixture(_)) => {
+                    format!("A building entrance leads {}.\n", dir)
+                }
+                None => format!("There is nothing to the {}.\n", dir),
+            }
+        }
     }
 }
 
@@ -91,17 +179,85 @@ fn go_direction(dir: Direction, client_id: u32, state: &mut GameState) -> String
         Some(p) => p.core.location,
         None    => return String::new(),
     };
-    // Copy dest out to end the borrow on state.world before mutating state.players.
-    let dest = state.world
-        .get_room(loc.zone_id, loc.room_id)
-        .and_then(|room| room.exits.get(&dir).copied());
 
-    match dest {
-        Some(new_loc) => {
-            state.players.get_mut(&client_id).unwrap().core.location = new_loc;
+    match loc {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            if !is_valid_direction(dir, true) {
+                return "You can't go that way.\n".to_string();
+            }
+            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+
+            // Area exit takes priority.
+            let area_exit = state.world
+                .get_area(area_ref)
+                .and_then(|area| area.exits.get(&dir).copied());
+            if let Some(new_ref) = area_exit {
+                state.players.get_mut(&client_id).unwrap().core.location =
+                    PlayerLocation::area(new_ref.zone, new_ref.area_id);
+                return describe_location(client_id, state);
+            }
+
+            // No area exit — auto-enter any gateway fixture in this area.
+            let gateway_room = state.world
+                .get_area(area_ref)
+                .and_then(|area| area.fixtures.iter().find_map(|f| f.connects_to_room));
+            if let Some(room_id) = gateway_room {
+                state.players.get_mut(&client_id).unwrap().core.location =
+                    PlayerLocation::room(room_id);
+                return describe_location(client_id, state);
+            }
+
+            "You can't go that way.\n".to_string()
+        }
+        PlayerLocation::Room { room_id } => {
+            let dest = state.world
+                .get_room(room_id)
+                .and_then(|room| room.exits.get(&dir).cloned());
+            match dest {
+                Some(ExitDestination::Room { room_id: new_id }) => {
+                    state.players.get_mut(&client_id).unwrap().core.location =
+                        PlayerLocation::room(new_id);
+                    describe_location(client_id, state)
+                }
+                Some(ExitDestination::Fixture(fixture_ref)) => {
+                    let area_ref = AreaRef { zone: fixture_ref.zone, area_id: fixture_ref.area_id };
+                    state.players.get_mut(&client_id).unwrap().core.location =
+                        PlayerLocation::area(area_ref.zone, area_ref.area_id);
+                    describe_location(client_id, state)
+                }
+                None => "You can't go that way.\n".to_string(),
+            }
+        }
+    }
+}
+
+fn enter_fixture(dir: Direction, client_id: u32, state: &mut GameState) -> String {
+    let loc = match state.players.get(&client_id) {
+        Some(p) => p.core.location,
+        None    => return String::new(),
+    };
+
+    let area_ref = match loc.as_area_ref() {
+        Some(r) => r,
+        None    => return "You are already inside.\n".to_string(),
+    };
+
+    if !is_valid_direction(dir, true) {
+        return "You can't go that way.\n".to_string();
+    }
+
+    // Find a gateway fixture (explicit enter, even when an area exit also exists in this dir).
+    let gateway_room = state.world
+        .get_area(area_ref)
+        .and_then(|area| area.fixtures.iter().find_map(|f| f.connects_to_room));
+
+    match gateway_room {
+        Some(room_id) => {
+            state.players.get_mut(&client_id).unwrap().core.location =
+                PlayerLocation::room(room_id);
             describe_location(client_id, state)
         }
-        None => "You can't go that way.\n".to_string(),
+        None => "There's nothing to enter here.\n".to_string(),
     }
 }
 
@@ -111,29 +267,36 @@ fn cmd_examine(target: &str, client_id: u32, state: &GameState) -> String {
         None    => return String::new(),
     };
 
-    // Check fixtures in the current room first.
-    if let Some(room) = state.world.get_room(loc.zone_id, loc.room_id) {
-        if let Some(fixture) = room.fixtures.iter().find(|f| f.matches_name(target)) {
-            return format!("{}\n", fixture.examine);
+    let (fixtures, objects) = match loc {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+            match state.world.get_area(area_ref) {
+                Some(a) => (a.fixtures.as_slice(), a.objects.as_slice()),
+                None    => return "(You are nowhere.)\n".to_string(),
+            }
         }
-        // Then objects on the floor.
-        let registry = &state.world.object_registry;
-        if let Some(obj) = room.objects.iter().find(|o| {
-            registry.get(&o.template_id)
-                .map(|t| t.matches_name(target))
-                .unwrap_or(false)
-        }) {
-            return format!("{}\n", obj.description(registry));
+        PlayerLocation::Room { room_id } => {
+            match state.world.get_room(room_id) {
+                Some(r) => (r.fixtures.as_slice(), r.objects.as_slice()),
+                None    => return "(You are nowhere.)\n".to_string(),
+            }
         }
+    };
+
+    if let Some(fixture) = fixtures.iter().find(|f| f.matches_name(target)) {
+        return format!("{}\n", fixture.examine);
     }
 
-    // Then inventory.
     let registry = &state.world.object_registry;
+    if let Some(obj) = objects.iter().find(|o| {
+        registry.get(&o.template_id).map(|t| t.matches_name(target)).unwrap_or(false)
+    }) {
+        return format!("{}\n", obj.description(registry));
+    }
+
     if let Some(p) = state.players.get(&client_id) {
         if let Some(obj) = p.inventory.iter().find(|o| {
-            registry.get(&o.template_id)
-                .map(|t| t.matches_name(target))
-                .unwrap_or(false)
+            registry.get(&o.template_id).map(|t| t.matches_name(target)).unwrap_or(false)
         }) {
             return format!("{}\n", obj.description(registry));
         }
@@ -148,29 +311,49 @@ fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
         None    => return String::new(),
     };
 
-    // Find the object and extract the info we need before releasing borrows.
-    let result: Option<(usize, ObjectInstance, String)> = {
-        let room = match state.world.get_room(loc.zone_id, loc.room_id) {
-            Some(r) => r,
-            None    => return "(You are nowhere.)\n".to_string(),
-        };
-        let registry = &state.world.object_registry;
-        room.objects.iter().enumerate().find_map(|(idx, obj)| {
-            registry.get(&obj.template_id).and_then(|tmpl| {
-                if tmpl.matches_name(target) {
-                    Some((idx, obj.clone(), tmpl.short.clone()))
-                } else {
-                    None
-                }
+    let result: Option<(usize, ObjectInstance, String)> = match loc {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+            let area = match state.world.get_area(area_ref) {
+                Some(a) => a,
+                None    => return "(You are nowhere.)\n".to_string(),
+            };
+            let registry = &state.world.object_registry;
+            area.objects.iter().enumerate().find_map(|(idx, obj)| {
+                registry.get(&obj.template_id).and_then(|tmpl| {
+                    if tmpl.matches_name(target) { Some((idx, obj.clone(), tmpl.short.clone())) } else { None }
+                })
             })
-        })
+        }
+        PlayerLocation::Room { room_id } => {
+            let room = match state.world.get_room(room_id) {
+                Some(r) => r,
+                None    => return "(You are nowhere.)\n".to_string(),
+            };
+            let registry = &state.world.object_registry;
+            room.objects.iter().enumerate().find_map(|(idx, obj)| {
+                registry.get(&obj.template_id).and_then(|tmpl| {
+                    if tmpl.matches_name(target) { Some((idx, obj.clone(), tmpl.short.clone())) } else { None }
+                })
+            })
+        }
     };
 
     match result {
         None => format!("You don't see any '{}' here.\n", target),
         Some((idx, obj, short)) => {
-            if let Some(room) = state.world.get_room_mut(loc.zone_id, loc.room_id) {
-                room.objects.remove(idx);
+            match loc {
+                PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                    let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                    if let Some(area) = state.world.get_area_mut(area_ref) {
+                        area.objects.remove(idx);
+                    }
+                }
+                PlayerLocation::Room { room_id } => {
+                    if let Some(room) = state.world.get_room_mut(room_id) {
+                        room.objects.remove(idx);
+                    }
+                }
             }
             if let Some(p) = state.players.get_mut(&client_id) {
                 p.inventory.push(obj);
@@ -189,11 +372,7 @@ fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
         let registry = &state.world.object_registry;
         let result = player.inventory.iter().enumerate().find_map(|(idx, obj)| {
             registry.get(&obj.template_id).and_then(|tmpl| {
-                if tmpl.matches_name(target) {
-                    Some((idx, obj.clone(), tmpl.short.clone()))
-                } else {
-                    None
-                }
+                if tmpl.matches_name(target) { Some((idx, obj.clone(), tmpl.short.clone())) } else { None }
             })
         });
         (player.core.location, result)
@@ -205,8 +384,18 @@ fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
             if let Some(p) = state.players.get_mut(&client_id) {
                 p.inventory.remove(idx);
             }
-            if let Some(room) = state.world.get_room_mut(loc.zone_id, loc.room_id) {
-                room.objects.push(obj);
+            match loc {
+                PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                    let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                    if let Some(area) = state.world.get_area_mut(area_ref) {
+                        area.objects.push(obj);
+                    }
+                }
+                PlayerLocation::Room { room_id } => {
+                    if let Some(room) = state.world.get_room_mut(room_id) {
+                        room.objects.push(obj);
+                    }
+                }
             }
             format!("You drop {}.\n", short)
         }
@@ -234,55 +423,59 @@ fn cmd_inventory(client_id: u32, state: &GameState) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::{Direction, Room, RoomRef, World, Zone};
+    use crate::world::{Area, AreaRef, HexCoord, World, Zone};
     use std::collections::HashMap;
 
     const CLIENT: u32 = 0;
-    const START:  RoomRef = RoomRef { zone_id: 1, room_id: 1 };
+
+    fn start_loc() -> PlayerLocation {
+        PlayerLocation::area(HexCoord::new(0, 0), 1)
+    }
 
     fn make_state() -> GameState {
         let mut world = World::new();
-        let mut zone = Zone::new(1, "Test Zone", "");
-        zone.add_room(Room {
+        let mut zone = Zone::new(HexCoord::new(0, 0), "Test Zone", "");
+        zone.add_area(Area {
             id: 1,
-            name: "Start Room".to_string(),
-            description: "The starting room.".to_string(),
+            name: "Start Area".to_string(),
+            description: "The starting area.".to_string(),
             exits: HashMap::from([
-                (Direction::North, RoomRef { zone_id: 1, room_id: 2 }),
+                (Direction::North, AreaRef { zone: HexCoord::new(0, 0), area_id: 2 }),
             ]),
             fixtures: vec![],
             objects: vec![],
         });
-        zone.add_room(Room {
+        zone.add_area(Area {
             id: 2,
-            name: "North Room".to_string(),
+            name: "North Area".to_string(),
             description: "North of start.".to_string(),
             exits: HashMap::from([
-                (Direction::South, RoomRef { zone_id: 1, room_id: 1 }),
+                (Direction::South, AreaRef { zone: HexCoord::new(0, 0), area_id: 1 }),
             ]),
             fixtures: vec![],
             objects: vec![],
         });
         world.add_zone(zone);
         let mut state = GameState::new(world);
-        state.add_player(CLIENT, "tester", "Tester", START);
+        state.add_player(CLIENT, "tester", "Tester", start_loc());
         state
     }
 
     #[test]
     fn go_north_moves_player() {
         let mut state = make_state();
-        assert_eq!(state.players[&CLIENT].core.location.room_id, 1);
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
         let (_, cont) = execute(Command::Go(Direction::North), CLIENT, &mut state);
         assert!(cont);
-        assert_eq!(state.players[&CLIENT].core.location.room_id, 2);
+        let expected = PlayerLocation::area(HexCoord::new(0, 0), 2);
+        assert_eq!(state.players[&CLIENT].core.location, expected);
     }
 
     #[test]
     fn go_blocked_keeps_location() {
         let mut state = make_state();
         execute(Command::Go(Direction::East), CLIENT, &mut state);
-        assert_eq!(state.players[&CLIENT].core.location.room_id, 1);
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
     }
 
     #[test]
@@ -290,7 +483,7 @@ mod tests {
         let mut state = make_state();
         execute(Command::Go(Direction::North), CLIENT, &mut state);
         execute(Command::Go(Direction::South), CLIENT, &mut state);
-        assert_eq!(state.players[&CLIENT].core.location.room_id, 1);
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
     }
 
     #[test]
@@ -317,9 +510,10 @@ mod tests {
     #[test]
     fn multiple_clients_independent_locations() {
         let mut state = make_state();
-        state.add_player(1, "tester2", "Tester2", START);
+        state.add_player(1, "tester2", "Tester2", start_loc());
         execute(Command::Go(Direction::North), CLIENT, &mut state);
-        assert_eq!(state.players[&CLIENT].core.location.room_id, 2);
-        assert_eq!(state.players[&1].core.location.room_id, 1);
+        let expected_north = PlayerLocation::area(HexCoord::new(0, 0), 2);
+        assert_eq!(state.players[&CLIENT].core.location, expected_north);
+        assert_eq!(state.players[&1].core.location, start_loc());
     }
 }

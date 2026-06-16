@@ -8,7 +8,7 @@ pub use monster::Monster;
 pub use npc::Npc;
 pub use player::Player;
 
-use crate::world::RoomRef;
+use crate::world::PlayerLocation;
 
 // The shared interface every mob type must implement.
 // `core()` and `core_mut()` are required — everything else has a default
@@ -23,7 +23,7 @@ pub trait Mobile {
     fn health(&self) -> u32 {
         self.core().health
     }
-    fn location(&self) -> RoomRef {
+    fn location(&self) -> PlayerLocation {
         self.core().location
     }
     fn describe(&self) -> String;
@@ -69,9 +69,13 @@ impl Mobile for Mob {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::RoomRef;
 
-    fn loc() -> RoomRef { RoomRef { zone_id: 1, room_id: 1 } }
+    use crate::world::{AreaRef, HexCoord};
+
+    fn loc() -> PlayerLocation {
+        PlayerLocation::area(HexCoord::new(0, 1), 1)
+    }
+
     fn player(name: &str) -> Player { Player::new(MobCore::new(1, name, 100, loc()), name) }
     fn monster(name: &str, hp: u32) -> Monster { Monster::new(MobCore::new(2, name, hp, loc()), false) }
 
@@ -95,7 +99,7 @@ mod tests {
     #[test]
     fn mob_enum_delegates_location() {
         let mob = Mob::Player(player("Aldric"));
-        assert_eq!(mob.location().zone_id, 1);
-        assert_eq!(mob.location().room_id, 1);
+        let area_ref = AreaRef { zone: HexCoord::new(0, 1), area_id: 1 };
+        assert_eq!(mob.location().as_area_ref(), Some(area_ref));
     }
 }

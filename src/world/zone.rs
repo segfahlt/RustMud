@@ -1,39 +1,46 @@
 use std::collections::HashMap;
-use super::room::Room;
+
+use super::area::Area;
+use super::hex::HexCoord;
 
 #[derive(Debug)]
 pub struct Zone {
-    pub id: u32,
-    pub name: String,
-    pub description: String,
-    rooms: HashMap<u32, Room>,
+    pub coord:        HexCoord,
+    pub name:         String,
+    pub description:  String,
+    pub biome_origin: String,
+    pub coherence:    u8,
+    pub radius_steps: u8,
+    areas:            HashMap<u32, Area>,
 }
 
 impl Zone {
-    pub fn new(id: u32, name: impl Into<String>, description: impl Into<String>) -> Self {
+    pub fn new(coord: HexCoord, name: impl Into<String>, description: impl Into<String>) -> Self {
         Zone {
-            id,
+            coord,
             name: name.into(),
             description: description.into(),
-            rooms: HashMap::new(),
+            biome_origin: String::new(),
+            coherence: 50,
+            radius_steps: 1,
+            areas: HashMap::new(),
         }
     }
 
-    pub fn add_room(&mut self, room: Room) {
-        self.rooms.insert(room.id, room);
+    pub fn add_area(&mut self, area: Area) {
+        self.areas.insert(area.id, area);
     }
 
-    pub fn get_room(&self, room_id: u32) -> Option<&Room> {
-        self.rooms.get(&room_id)
+    pub fn get_area(&self, area_id: u32) -> Option<&Area> {
+        self.areas.get(&area_id)
     }
 
-    pub fn get_room_mut(&mut self, room_id: u32) -> Option<&mut Room> {
-        self.rooms.get_mut(&room_id)
+    pub fn get_area_mut(&mut self, area_id: u32) -> Option<&mut Area> {
+        self.areas.get_mut(&area_id)
     }
 
-    // Returns room IDs in sorted order — callers don't need to touch the HashMap.
-    pub fn room_ids(&self) -> Vec<u32> {
-        let mut ids: Vec<u32> = self.rooms.keys().copied().collect();
+    pub fn area_ids(&self) -> Vec<u32> {
+        let mut ids: Vec<u32> = self.areas.keys().copied().collect();
         ids.sort();
         ids
     }
@@ -42,13 +49,12 @@ impl Zone {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::Room;
     use std::collections::HashMap;
 
-    fn make_room(id: u32) -> Room {
-        Room {
+    fn make_area(id: u32) -> Area {
+        Area {
             id,
-            name: format!("Room {id}"),
+            name: format!("Area {id}"),
             description: String::new(),
             exits: HashMap::new(),
             fixtures: vec![],
@@ -56,24 +62,26 @@ mod tests {
         }
     }
 
+    fn coord() -> HexCoord { HexCoord::new(0, 0) }
+
     #[test]
-    fn add_and_get_room() {
-        let mut zone = Zone::new(1, "Test", "");
-        zone.add_room(make_room(1));
-        assert!(zone.get_room(1).is_some());
+    fn add_and_get_area() {
+        let mut zone = Zone::new(coord(), "Test", "");
+        zone.add_area(make_area(1));
+        assert!(zone.get_area(1).is_some());
     }
 
     #[test]
-    fn get_missing_room_returns_none() {
-        assert!(Zone::new(1, "Test", "").get_room(99).is_none());
+    fn get_missing_area_returns_none() {
+        assert!(Zone::new(coord(), "Test", "").get_area(99).is_none());
     }
 
     #[test]
-    fn room_ids_are_sorted() {
-        let mut zone = Zone::new(1, "Test", "");
-        zone.add_room(make_room(3));
-        zone.add_room(make_room(1));
-        zone.add_room(make_room(2));
-        assert_eq!(zone.room_ids(), vec![1, 2, 3]);
+    fn area_ids_are_sorted() {
+        let mut zone = Zone::new(coord(), "Test", "");
+        zone.add_area(make_area(3));
+        zone.add_area(make_area(1));
+        zone.add_area(make_area(2));
+        assert_eq!(zone.area_ids(), vec![1, 2, 3]);
     }
 }

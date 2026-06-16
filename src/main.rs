@@ -14,13 +14,17 @@ use rustmud::persist::{
 };
 use rustmud::proto::{GameMsg, GatewayMsg};
 use rustmud::world::loader::load_world;
-use rustmud::world::RoomRef;
+use rustmud::world::{AreaRef, HexCoord, PlayerLocation, World};
 
 const SOCKET_PATH:  &str = "/tmp/rustmud.sock";
 const ACCOUNTS_DIR: &str = "data/accounts";
 const CHARS_DIR:    &str = "data/characters";
 const SAVE_PATH:    &str = "data/save/state.json";
-const START_LOC:    RoomRef = RoomRef { zone_id: 1, room_id: 1 };
+
+// Room 1 is the Cryo-Bay aboard the Perihelion — the new player start.
+fn start_loc() -> PlayerLocation {
+    PlayerLocation::room(1)
+}
 
 // ---------------------------------------------------------------------------
 // Admin signal — sent from a command handler back to the main loop.
@@ -152,13 +156,10 @@ async fn handle_msg(
     signal_tx: &tokio::sync::mpsc::Sender<Signal>,
 ) {
     match msg {
-        // Gateway knows this client's character — restore silently, no prompt.
         GameMsg::Connect { client_id, character_id: Some(cid), .. } => {
             let s = restore_character(client_id, &cid, state, save, writer, false).await;
             sessions.insert(client_id, s);
         }
-
-        // New connection or mid-login when game rebooted — start from the top.
         GameMsg::Connect { client_id, .. } => {
             sessions.insert(client_id, SessionState::NeedUsername);
             send(writer, GatewayMsg::Output {
@@ -166,9 +167,7 @@ async fn handle_msg(
                 text: "Username: ".to_string(),
             }).await;
         }
-
         GameMsg::Input { client_id, line } => {
-            // Remove the state, compute the transition, then re-insert.
             if let Some(current) = sessions.remove(&client_id) {
                 let next = dispatch(
                     client_id, line.trim().to_string(),
@@ -179,7 +178,6 @@ async fn handle_msg(
                 }
             }
         }
-
         GameMsg::Disconnect { client_id } => {
             eprintln!("Client {client_id} disconnected");
             state.remove_player(client_id);
@@ -190,7 +188,6 @@ async fn handle_msg(
 
 // ---------------------------------------------------------------------------
 // State machine dispatch
-// Returns the next SessionState (None = session is over / already cleaned up).
 // ---------------------------------------------------------------------------
 
 async fn dispatch(
@@ -205,22 +202,16 @@ async fn dispatch(
     match current {
         SessionState::NeedUsername =>
             on_username(client_id, input, writer).await,
-
         SessionState::NeedPassword { username } =>
             on_password(client_id, input, username, state, save, writer).await,
-
         SessionState::NeedNewPassword { username } =>
             on_new_password(client_id, input, username, writer).await,
-
         SessionState::NeedPasswordConfirm { username, hash } =>
             on_confirm_password(client_id, input, username, hash, state, save, writer).await,
-
         SessionState::CharacterSelect { account_id } =>
             on_char_select(client_id, input, account_id, state, save, writer).await,
-
         SessionState::NeedCharName { account_id } =>
             on_char_name(client_id, input, account_id, state, save, writer).await,
-
         SessionState::Playing { account_id, character_id, permissions } =>
             on_command(client_id, input, account_id, character_id, permissions, state, writer, signal_tx).await,
     }
@@ -383,7 +374,6 @@ async fn on_char_name(
         return Some(SessionState::NeedCharName { account_id });
     }
 
-    // First character ever created in the world gets Admin (bootstrap).
     let is_first_character = std::fs::read_dir(Path::new(CHARS_DIR))
         .map(|mut d| d.next().is_none())
         .unwrap_or(true);
@@ -394,10 +384,10 @@ async fn on_char_name(
     };
 
     write_character(Path::new(CHARS_DIR), &CharacterFile {
-        id:         char_id.clone(),
-        account_id: account_id.clone(),
-        name:       input.clone(),
-        home_room:  None,
+        id:            char_id.clone(),
+        account_id:    account_id.clone(),
+        name:          input.clone(),
+        home_location: None,
         permissions,
     }).unwrap_or_else(|e| eprintln!("Could not write character: {e}"));
 
@@ -490,8 +480,7 @@ async fn on_command(
 }
 
 // ---------------------------------------------------------------------------
-// Character restore — loads save data, puts character in the world.
-// Returns the Playing state to be inserted by the caller.
+// Character restore
 // ---------------------------------------------------------------------------
 
 async fn restore_character(
@@ -508,15 +497,10 @@ async fn restore_character(
 
     let (location, health, max_health) = match save.characters.get(character_id) {
         Some(cs) => {
-            let loc = RoomRef { zone_id: cs.zone_id, room_id: cs.room_id };
-            let loc = if state.world.get_room(loc.zone_id, loc.room_id).is_some() {
-                loc
-            } else {
-                START_LOC
-            };
+            let loc = if location_exists(cs.location, &state.world) { cs.location } else { start_loc() };
             (loc, cs.health, cs.max_health)
         }
-        None => (START_LOC, 100, 100),
+        None => (start_loc(), 100, 100),
     };
 
     state.add_player(client_id, character_id, display_name, location);
@@ -528,11 +512,11 @@ async fn restore_character(
         }
     }
 
-    let loc = describe_location(client_id, state);
+    let loc_desc = describe_location(client_id, state);
     let text = if is_new {
-        format!("{loc}\n> ")
+        format!("{loc_desc}\n> ")
     } else {
-        format!("Welcome back, {display_name}!\n\n{loc}\n> ")
+        format!("Welcome back, {display_name}!\n\n{loc_desc}\n> ")
     };
     send(writer, GatewayMsg::Output { client_id, text }).await;
 
@@ -541,6 +525,15 @@ async fn restore_character(
         .unwrap_or_else(|| [Permission::Player].into());
 
     SessionState::Playing { account_id, character_id: character_id.to_string(), permissions }
+}
+
+fn location_exists(loc: PlayerLocation, world: &World) -> bool {
+    match loc {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            world.get_area(AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id }).is_some()
+        }
+        PlayerLocation::Room { room_id } => world.get_room(room_id).is_some(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -553,22 +546,35 @@ fn char_select_screen(account: &AccountFile, save: &WorldSave, state: &GameState
         out.push_str("  (no characters yet)\n");
     } else {
         for (i, cr) in account.characters.iter().enumerate() {
-            let location = save.characters.get(&cr.id)
-                .and_then(|cs| state.world.get_room(cs.zone_id, cs.room_id))
-                .map(|r| r.name.as_str())
-                .unwrap_or("The Beginning");
-            out.push_str(&format!("  {}. {} — {}\n", i + 1, cr.name, location));
+            let location_name = save.characters.get(&cr.id)
+                .map(|cs| location_display_name(cs.location, &state.world))
+                .unwrap_or_else(|| "The Beginning".to_string());
+            out.push_str(&format!("  {}. {} — {}\n", i + 1, cr.name, location_name));
         }
     }
     out.push_str("\n  N. New character\n\nChoose: ");
     out
 }
 
+fn location_display_name(loc: PlayerLocation, world: &World) -> String {
+    match loc {
+        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+            world.get_area(AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id })
+                .map(|a| a.name.clone())
+                .unwrap_or_else(|| "The Beginning".to_string())
+        }
+        PlayerLocation::Room { room_id } => {
+            world.get_room(room_id)
+                .map(|r| r.name.clone())
+                .unwrap_or_else(|| "The Beginning".to_string())
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Save helpers
 // ---------------------------------------------------------------------------
 
-// Write current state to disk and optionally reset all players to their home room.
 async fn do_save(
     state:    &GameState,
     sessions: &HashMap<u32, SessionState>,
@@ -578,12 +584,13 @@ async fn do_save(
     for (client_id, session) in sessions {
         if let SessionState::Playing { character_id, .. } = session {
             let snapshot = if use_home {
-                // Save at home room instead of current location.
-                let home = home_room_for(character_id);
+                let home = home_loc_for(character_id);
                 let (health, inventory) = state.players.get(client_id)
                     .map(|p| (p.core.max_health, p.inventory.clone()))
                     .unwrap_or((100, vec![]));
-                Some(CharacterSave { zone_id: home.zone_id, room_id: home.room_id, health, max_health: health, inventory })
+                Some(CharacterSave {
+                    location: home, health, max_health: health, inventory, last_area: None,
+                })
             } else {
                 state.snapshot_character(*client_id)
             };
@@ -596,12 +603,10 @@ async fn do_save(
         .unwrap_or_else(|e| eprintln!("Save failed: {e}"));
 }
 
-// Returns a character's home room. Falls back to START_LOC until the
-// home_room field is set on their CharacterFile.
-fn home_room_for(character_id: &str) -> RoomRef {
+fn home_loc_for(character_id: &str) -> PlayerLocation {
     load_character(Path::new(CHARS_DIR), character_id)
-        .and_then(|c| c.home_room)
-        .unwrap_or(START_LOC)
+        .and_then(|c| c.home_location)
+        .unwrap_or_else(start_loc)
 }
 
 // ---------------------------------------------------------------------------

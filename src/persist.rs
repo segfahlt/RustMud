@@ -9,7 +9,7 @@ use argon2::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::world::{ObjectInstance, RoomRef};
+use crate::world::{ObjectInstance, PlayerLocation};
 
 // --- Permissions ---
 
@@ -63,7 +63,7 @@ pub struct CharacterFile {
     // Where the character returns on a reboot-refresh or explicit /home command.
     // None → START_LOC until explicitly set.
     #[serde(default)]
-    pub home_room:  Option<RoomRef>,
+    pub home_location: Option<PlayerLocation>,
     #[serde(default = "default_permissions")]
     pub permissions: HashSet<Permission>,
 }
@@ -72,21 +72,26 @@ pub struct CharacterFile {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterSave {
-    pub zone_id:    u32,
-    pub room_id:    u32,
+    pub location:   PlayerLocation,
     pub health:     u32,
     pub max_health: u32,
     #[serde(default)]
     pub inventory:  Vec<ObjectInstance>,
+    /// Last Area visited — used to return players when exiting a Room cluster.
+    #[serde(default)]
+    pub last_area:  Option<PlayerLocation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct WorldSave {
     #[serde(default)]
     pub characters: HashMap<String, CharacterSave>,  // character_id → save
-    // Placeholder for future room object contents, keyed "zone_id:room_id".
+    /// Objects on Area floors, keyed by "zone_q:zone_r:area_id".
     #[serde(default)]
-    pub rooms: HashMap<String, serde_json::Value>,
+    pub area_objects: HashMap<String, serde_json::Value>,
+    /// Objects on Room floors, keyed by room_id.
+    #[serde(default)]
+    pub room_objects: HashMap<u32, serde_json::Value>,
 }
 
 // --- Password hashing (argon2id) ---
