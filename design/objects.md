@@ -50,10 +50,13 @@ Instances are created when an object enters the world (spawned in a room, crafte
   "uses_remaining": null,
   "contents": [],
   "custom_name": null,
+  "custom_desc": null,
   "bonded_to": null,
   "flags_override": []
 }
 ```
+
+`custom_name` renames the item ("my father's knife"). `custom_desc` stores a player-written personal description, used for Earth items from character creation (the photograph they described, the letter they wrote).
 
 Instances reference their template for everything not listed. The template is the single source of truth for base properties.
 
@@ -210,10 +213,11 @@ Object instances need to survive reboots. Storage locations:
 
 | Where | Persistence Location |
 |-------|---------------------|
-| In a room | `WorldSave.room_objects: HashMap<RoomRef, Vec<ObjectInstance>>` |
+| In an Area | `WorldSave.area_objects: HashMap<AreaRef, Vec<ObjectInstance>>` |
+| In a Room | `WorldSave.room_objects: HashMap<RoomRef, Vec<ObjectInstance>>` |
 | In player inventory | `CharacterSave.inventory: Vec<ObjectInstance>` |
 | Equipped on player | `CharacterSave.equipment: HashMap<WearSlot, ObjectInstance>` |
-| In a container in a room | Nested in the container instance in `room_objects` |
+| In a container in an Area or Room | Nested in the container instance in the relevant map above |
 | In a fixture container | `WorldSave.fixture_contents: HashMap<FixtureRef, Vec<ObjectInstance>>` |
 
 Objects in rooms decay: dropped items disappear after a configurable duration (except `QUEST` items, which persist until picked up). Decay timer is stored in the instance.
@@ -245,7 +249,7 @@ Zone-specific unique items can be defined inline in the zone file under a `loot_
 When a new player opens their locker in Cargo Bay 3:
 1. System reads their profession → loads profession kit template list → spawns instances
 2. System reads their personal item choices → spawns instances of selected Earth items
-3. All instances are placed in the locker fixture (a container fixture in room zone_id:1, room_id:2)
+3. All instances are placed in the locker fixture (a container fixture at `{ zone_id: 1, location_type: Room, location_id: "cargo_bay_3", fixture_id: "player_locker_7delta" }`)
 4. Player uses `open locker`, `look in locker`, `get [item] from locker`
 
 Earth item instances carry the player's custom descriptions (the photograph they wrote, the letter they described). These are stored in `ObjectInstance.custom_desc`.

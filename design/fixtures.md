@@ -6,7 +6,13 @@ Status: **Draft** — design complete, ready for implementation planning
 
 ## What Fixtures Are
 
-Fixtures are room-bound interactive objects. They cannot be picked up or moved. They exist in rooms the way furniture exists in a room — they define the space and enable action within it, but they do not travel with the player.
+Fixtures are interactive objects fixed to a location. They cannot be picked up or moved. They exist in Areas and Rooms the way furniture exists in a space — they define it and enable action within it, but they do not travel with the player.
+
+Fixtures appear in both tiers of the navigable world:
+- **In an Area** (outdoor space): freestanding objects without interior — a fire ring, notice board, well, ancient marker, symbiont pod
+- **In a Room** (building interior): furnishings and equipment — a forge, counter, bed, medical scanner, terminal
+
+The data model is identical in both contexts. The semantic role differs by where they appear.
 
 Fixtures can:
 - Have extended descriptions separate from the room description
@@ -118,6 +124,40 @@ Coherence fixtures are not scripted trigger-and-effect systems. They are living 
 
 ---
 
+## Fixture Permanence
+
+Every fixture is either **permanent** or **degradable**. This classification drives the devolution floor system described in `design/world-structure.md`.
+
+| Permanence | Devolution behavior | Examples |
+|---|---|---|
+| **Permanent** | Defines a devolution floor. The Area cannot devolve below `fixture.minimum_stage`. | Building entrance, well, constructed road marker, forge (bolted), permanent signage |
+| **Degradable** | No floor. Removed or transitioned to a ruined state when the Area devolves past threshold. | Fire pit, lean-to, cache, rough trail marker, field-built camp structures |
+
+**The floor rule:** Before applying a devolution step, the game loop checks every permanent fixture in the Area. The highest `minimum_stage` among them is the floor. Devolution stops there regardless of traffic or time.
+
+**Degradable removal:** When an Area devolves and a degradable fixture falls below its implicit plausibility threshold, the fixture is removed from the Area and its state is discarded. This is narratively coherent — a fire pit gets reclaimed, a lean-to rots. A building disappearing because nobody walked past it for a month is not coherent, and the permanent classification prevents that.
+
+**Demolition:** A permanent fixture can be deliberately demolished by a player or builder with appropriate permissions. Demolishing the last permanent fixture that anchors the floor removes that floor constraint — the Area can then devolve freely again.
+
+### Minimum Stage by Fixture Type
+
+| Fixture type | Permanence | Minimum stage | Reasoning |
+|---|---|---|---|
+| Building entrance / structure | Permanent | Trail | Established traffic route required to justify construction |
+| Well | Permanent | Footpath | Regular use needed to justify excavation |
+| Constructed road surface | Permanent | Road | Is the infrastructure |
+| Permanent signage / marker | Permanent | Path | Consistent enough passage to justify marker |
+| Forge (bolted, built structure) | Permanent | Trail | Infrastructure implies settlement |
+| Field-built camp | Degradable | — | No floor; devolves naturally |
+| Fire pit / fire ring | Degradable | — | Reclaimed by vegetation |
+| Lean-to / field shelter | Degradable | — | Rots, collapses, vanishes |
+| Cache (hidden) | Degradable | — | Looted, buried, forgotten |
+| Worn trail marker | Degradable | — | Disappears with devolution to Pristine |
+
+`minimum_stage` for permanent fixtures is defined per fixture instance, not per category — a rough wooden signpost is Degradable, but a metal plaque bolted to a stone post is Permanent with a minimum stage of `Path`.
+
+---
+
 ## Room Display Model
 
 This is how fixtures appear to players. There are three distinct text layers:
@@ -194,6 +234,9 @@ Fixtures are defined in zone JSON under an optional `fixtures` array on each roo
   "id": "fabrication_bench",
   "names": ["bench", "fabrication bench", "workbench"],
   "category": "crafting_station",
+  "permanence": "permanent",
+  "minimum_stage": "Trail",
+  "connects_to_room": null,
   "state_lines": {
     "default": "The fabrication bench runs the length of the east wall, surface scarred by use."
   },
@@ -352,7 +395,7 @@ Stateful fixtures (`persist_state: true`) write to `WorldSave`:
 WorldSave.fixture_states: HashMap<FixtureRef, serde_json::Value>
 ```
 
-`FixtureRef = { zone_id, room_id, fixture_id }`. The state value is the fixture's current `state` object, serialized. On startup, fixture states are overlaid onto the zone file definitions.
+`FixtureRef = { zone_id, location_type, location_id, fixture_id }` where `location_type` is `Area` or `Room`. The state value is the fixture's current `state` object, serialized. On startup, fixture states are overlaid onto zone file definitions.
 
 Fixtures with `persist_state: false` reset to their zone file definition on every reboot. Most structural and informational fixtures are not persisted.
 
@@ -502,10 +545,18 @@ The LLM should not modify fixture interaction schemas — those are code-adjacen
 ## Rust Implementation Shape
 
 ```rust
+pub enum FixturePermanence {
+    Permanent,
+    Degradable,
+}
+
 pub struct Fixture {
     pub id: String,
     pub names: Vec<String>,
     pub category: FixtureCategory,
+    pub permanence: FixturePermanence,
+    pub minimum_stage: Option<EvolutionStage>, // floor for devolution; only meaningful when Permanent
+    pub connects_to_room: Option<u32>,         // Permanent fixtures only: the Room this fixture enters
     pub state_lines: HashMap<String, String>,  // state key → one-liner
     pub look: String,
     pub examine: String,

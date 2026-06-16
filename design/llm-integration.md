@@ -39,18 +39,27 @@ Player says: "{player_input}"
 - Hard cutoff: 6 turns max, then NPC says they have work to do
 - Static fallback: if no `dialogue` field, `speak` gives a canned response
 
-### 2. Procedural Room Descriptions
+### 2. Procedural Area and Room Generation
 
-**What**: Each room has a base description in the zone file. At render time, an LLM layer adds ambient variation: time of day, weather, recent events in the zone.
+**What**: Areas (outdoor spaces) and Rooms (buildings) are generated on demand as players explore. Each generation call produces a description, a set of exit hints, and a fixture list appropriate to the location's zone state and evolution stage.
 
-**When to call**: Not on every `look`. Possible triggers:
-- First time a player enters a room in a session
-- On a timer (description refreshes every N minutes globally)
-- Player uses `look` explicitly (not movement)
+**When to call**:
+- Player steps into an unvisited Area or Room for the first time (primary trigger)
+- An Area evolves or devolves to a new stage (re-generation of description)
+- A zone state change significantly affects an existing Area (reactive update)
 
-**Caching**: Generated description cached per room + (time_bucket, weather_state). Small number of cache keys means low call volume.
+**Context bundle per generation call** (see `design/world-structure.md` for full model):
+- `room-building.md` skill as system prompt
+- Current zone: biome, Coherence level, faction footprint, ecology
+- Adjacent Area/Room: full description (primary driver of continuity)
+- 2–3 prior Areas in direction of travel: abbreviated
+- Evolution stage of the new Area
+- Boundary flag + adjacent zone state if near zone edge
+- Exploration state: first visit vs. previously explored territory
 
-**Risk**: Inconsistency between static exit data and generated prose. The generated layer must not mention exits or objects — it describes atmosphere only.
+**Caching**: Generated descriptions are stored on the Area/Room node and served from the database on subsequent visits. Re-generation only occurs on evolution stage change or explicit world events — not on every entry.
+
+**Risk**: Inconsistency between generated prose and structural data (exits, fixtures). The generator must receive the exit list and fixture list as constraints, not generate them freely. Structure first, prose second.
 
 ### 3. Lore Oracle
 

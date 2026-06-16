@@ -20,7 +20,7 @@ It is simultaneously a Corporate administrative hub, a frontier town, a black ma
 
 Firstfall sits on a coastal bluff overlooking **Perihelion Bay** — a natural deepwater harbor formed from the flooded southern rim of an ancient impact crater. The crater is approximately 50,000 years old. Corporate geological surveys identified it from orbit: high mineral concentration in the surrounding terrain from impact ejecta, plus a sheltered port in the same location. Corporate did not choose this site by accident.
 
-The mineral-rich ejecta from the impact is scattered across the terrain to the north and west, concentrated most heavily within 5–10 miles of Firstfall. Surface deposits — accessible without deep mining — are the colony's early industrial base. The serious deposits lie at the **impact center**, several miles north, where the geology is dense and strange and the Coherence is wrong.
+The mineral-rich ejecta from the impact is scattered across the terrain to the north and west, concentrated most heavily within 8–16 km of Firstfall. Surface deposits — accessible without deep mining — are the colony's early industrial base. The serious deposits lie at the **impact center**, several kilometres north, where the geology is dense and strange and the Coherence is wrong.
 
 The impact zone's center is Coherence-dead. Whatever ecosystem existed before the strike was obliterated. What's grown back in 50,000 years is younger, thinner, and the Coherence signal there is weaker and stranger than anywhere else on the planet. Corporate's initial models suggested this would make the zone less hostile to colonists. At the one-year mark, that assumption is being quietly revisited.
 
@@ -39,7 +39,7 @@ Firstfall is walled. Not elegantly — the wall is Corporate security fencing re
 | **East Gate** | East | Coastal scrubland, lower Coherence pressure | Staffed during daylight, locked at night. Exploration, fishing access. |
 | **West Gate** | West | Continental interior, unbroken Coherence | Restricted. Requires Corporate clearance or established reputation. Nobody goes far. |
 
-The developed area extends roughly a mile out from the wall to the north and east — where resource runs have beaten paths into the terrain and the Coherence hasn't fully reclaimed the ground. Beyond that mile, you are on your own.
+The developed area extends roughly 1.5 km out from the wall to the north and east — where resource runs have beaten paths into the terrain and the Coherence hasn't fully reclaimed the ground. Beyond that, you are on your own.
 
 ---
 
@@ -50,7 +50,7 @@ The developed area extends roughly a mile out from the wall to the north and eas
 
 Outside the South Gate, at the edge of Perihelion Bay. The shuttle pad is a reinforced landing area for the atmospheric ferries that carry colonists down from the transports in orbit. Adjacent to the pad, the cryo-bay is a prefab structure where arriving colonists revive after transit. Below the bluff, the harbor docks extend into the bay — currently home to a handful of fishing boats and a coastal scout vessel. The water is the wrong color. The things moving in it are not fish.
 
-**Key rooms:**
+**Key locations:**
 - Cryo-Bay (pod rows, revival stations)
 - Cargo Bay 3 (player lockers, personal effects)
 - Shuttle Corridor (path toward the ramp)
@@ -70,7 +70,7 @@ Outside the South Gate, at the edge of Perihelion Bay. The shuttle pad is a rein
 
 Just inside the Main Gate. A Corporate processing facility that functions as the tutorial zone. New arrivals are funneled here, assessed, assigned a bunk, briefed on regulations, and released into Firstfall proper. The staff are overworked. The briefings are perfunctory. You learn more from the other new arrivals waiting in line than from anything official.
 
-**Key rooms:**
+**Key locations:**
 - Intake Lobby (queue, waiting, NPCs from various professions)
 - Assessment Office (profession verified, Corporate ID issued)
 - Briefing Room (basic orientation — in-game tutorial wrapper)
@@ -92,7 +92,7 @@ Just inside the Main Gate. A Corporate processing facility that functions as the
 
 The original prefab command structure. Sterile, organized, color-coded. The political center of Corporate's operation on the planet. Also the most hated building in Firstfall.
 
-**Key rooms:**
+**Key locations:**
 - Administration Lobby
 - Commerce Office (trader licensing, contracts, Corporate employment board)
 - Communications Center (quantum comms access — expensive, monitored)
@@ -112,7 +112,7 @@ The original prefab command structure. Sterile, organized, color-coded. The poli
 
 The best-equipped building in Firstfall, because Corporate needs its workers alive. Settler-accessible but the wait is long and the bill is real. A back room exists for those who know to ask for it — cheaper, less official, staffed by a Synchronized healer whose methods Corporate would rather not examine.
 
-**Key rooms:**
+**Key locations:**
 - Reception / Waiting Room
 - Treatment Bay (primary care, wound treatment)
 - Surgery (serious injuries)
@@ -132,7 +132,7 @@ The best-equipped building in Firstfall, because Corporate needs its workers ali
 
 The largest structure in Firstfall after the landing pad. Fabrication equipment, repair stations, salvage intake, and the colony's only functioning forge. Crowded, loud, smells like burnt metal and something biological that nobody talks about.
 
-**Key rooms:**
+**Key locations:**
 - Main Workshop (general repairs, fabrication benches)
 - The Forge (metalworking — key crafting station)
 - Electronics Bench (tech repair, components)
@@ -152,7 +152,7 @@ The largest structure in Firstfall after the landing pad. Fabrication equipment,
 
 Where Corporate issues equipment and sells supplies. Overpriced by frontier standards. The selection is whatever came on the last ship. The quality is reliable. They don't negotiate.
 
-**Key rooms:**
+**Key locations:**
 - Sales Floor (equipment, rations, basics)
 - Restricted Stock (weapons — license required)
 - Back Warehouse (inventory — periodic shortages when ships are late)
@@ -168,7 +168,7 @@ Where Corporate issues equipment and sells supplies. Overpriced by frontier stan
 
 The only place in Firstfall where Corporate staff, settlers, Adapted, and new arrivals all occupy the same room. The food is adequate. The coffee is real and therefore precious. The conversations are where you learn what's actually happening in Firstfall and beyond the wall.
 
-**Key rooms:**
+**Key locations:**
 - Main Hall (tables, bar counter, posted notices)
 - Kitchen (cooks, quest source for Agricultural profession)
 - The Corner Booth (where the real conversations happen — occupied by someone important most of the time)
@@ -186,7 +186,7 @@ The only place in Firstfall where Corporate staff, settlers, Adapted, and new ar
 
 Bunks for new arrivals and transient workers. Not comfortable. Not permanent. Where you sleep until you've been here long enough to arrange something better.
 
-**Key rooms:**
+**Key locations:**
 - New Arrival Wing (player starting bunk assignment)
 - General Barracks (long-term transient housing)
 - Corporate Staff Quarters (separate wing — better, access restricted)
@@ -199,7 +199,7 @@ Bunks for new arrivals and transient workers. Not comfortable. Not permanent. Wh
 
 The organic, unplanned section of Firstfall. Buildings built over time from salvaged materials, repaired and expanded by whoever needed space. Feels different from the Corporate prefabs — warmer, more layered, more dangerous if you don't know the social rules.
 
-**Key rooms:**
+**Key locations:**
 - The Quarter Main Street (central thoroughfare)
 - The Unofficial Market (trading, no licenses, no Corporate oversight)
 - The Meeting House (settler governance — informal, loud, democratic by necessity)
@@ -218,7 +218,7 @@ The organic, unplanned section of Firstfall. Buildings built over time from salv
 
 A converted prefab that the Seekers have covered in sensor equipment, sample storage, and dense data printouts. Corporate tolerates them because their research occasionally produces useful findings. The Seekers tolerate Corporate because Corporate has the quantum comms relay.
 
-**Key rooms:**
+**Key locations:**
 - Main Lab (analysis equipment, sample displays)
 - Field Preparation Room (where Seekers gear up before going out)
 - Data Archive (extensive, partially accessible to players)
@@ -236,7 +236,7 @@ A converted prefab that the Seekers have covered in sensor equipment, sample sto
 
 Not a building Corporate built. A space the Orthodox carved out in the Settler Quarter, expanded over time. Other settlers keep a respectful distance. The space itself feels different — quieter, the air slightly different, as if the Coherence is paying attention here.
 
-**Key rooms:**
+**Key locations:**
 - The Threshold (entrance, where newcomers are assessed before being allowed further)
 - The Hall (meeting, prayer, community — simple, deliberate)
 - The Inner Room (Voiced only — what happens here is not for outsiders)
@@ -254,7 +254,7 @@ Not a building Corporate built. A space the Orthodox carved out in the Settler Q
 
 The wall itself is walkable in sections. The gates are the exits to the world — each one a different kind of threshold. Players can walk the wall to observe the terrain before committing to going out.
 
-**Key rooms:**
+**Key locations:**
 - South Gate (interior and exterior — primary entry, shuttle traffic)
 - North Gate (interior and exterior — working gate, resource runners, most activity)
 - East Gate (interior and exterior — quieter, coastal direction)
@@ -276,12 +276,12 @@ The wall itself is walkable in sections. The gates are the exits to the world �
 |------|------|----------|--------|-------|
 | Shuttle Pad / Harbor | South (exterior) | 0 | None | Arrival area, cryo-bay |
 | The Receiving | South (interior) | 0 | None | Tutorial zone, newbie processing |
-| The Debris Field | North | 0–1 mile | Low | Surface mineral deposits, first resource gathering |
-| The Debris Field (far) | North | 1–5 miles | Medium | Richer deposits, more established ecosystem, paths end |
-| Coastal Scrubland | East | 0–1 mile | Low-Medium | First alien flora, fishing spots, Coherence building |
+| The Debris Field | North | 0–1.5 km | Low | Surface mineral deposits, first resource gathering |
+| The Debris Field (far) | North | 1.5–8 km | Medium | Richer deposits, more established ecosystem, paths end |
+| Coastal Scrubland | East | 0–1.5 km | Low-Medium | First alien flora, fishing spots, Coherence building |
 | Perihelion Bay (water) | South / East | — | Unknown | The bay ecosystem is alien and mostly unexplored |
 | The Continental Interior | West | Restricted | High | Unbroken Coherence, no established paths, full ecosystem |
-| The Impact Center | North | 5+ miles | High | Deep mineral deposits, Coherence-dead zone, strange terrain |
+| The Impact Center | North | 8+ km | High | Deep mineral deposits, Coherence-dead zone, strange terrain |
 | The Deep | Any | Far enough | Extreme | Unexplored, no paths, full Coherence, The Shaper's influence strongest |
 
 ---

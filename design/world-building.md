@@ -1,6 +1,10 @@
 # World Building Guide — The Eye
 
-Status: **Active** — this is the authoritative style reference for room writing. All content agents should receive this document as context before generating or modifying rooms.
+Status: **Active** — this is the authoritative style reference for Area and Room writing. All content agents should receive this document as context before generating or modifying Areas or Rooms.
+
+> **Structural model:** This document covers writing style and description rules. For the three-tier world structure (Zone → Area → Room), see `design/world-structure.md`.
+>
+> **Terminology:** In this world, outdoor navigable spaces are called **Areas**. Permanent built structures are called **Rooms**. The word "room" in traditional MUD contexts maps to Area here. Both follow the rules in this document — Areas describe open terrain, Rooms describe enclosed built space.
 
 ---
 
@@ -10,9 +14,9 @@ Each room must be independently intelligible. Assume the player has no context a
 
 ---
 
-## Room Anatomy
+## Area and Room Anatomy
 
-A complete room description covers these elements, in roughly this order:
+A complete description covers these elements, in roughly this order:
 
 1. **Space** — What is this room or area? Size, shape, construction, light source and quality.
 2. **Contents** — What exists here? Equipment, furniture, objects, people in place, evidence of use.
@@ -58,7 +62,7 @@ The planet is not explained; it is observed. Strange things are described exactl
 ## Tone and Voice
 
 - **Present tense.** The room exists now.
-- **No second-person "you" in descriptions** except at moments of deliberate narrative weight (the Disembarkation Ramp, the Cryo-Bay revival). Use sparingly.
+- **No second-person "you" in descriptions** except at moments of deliberate narrative weight (the Disembarkation Ramp, the Cryo-Bay revival). Use sparingly. **AI agents follow a stricter rule: never use "you"** — the exception is reserved for human authors making a deliberate craft choice. See `.claude/commands/room-building.md`.
 - **Concrete specifics over abstract atmosphere.** `"the smell of glycerol and recycled oxygen"` beats `"a clinical smell."` `"water the color of strong tea"` beats `"dark water."`
 - **One precise word beats three vague ones.** No adjective stacking.
 - **No interpretation.** Do not tell the player how to feel. Describe; let them feel it.
@@ -136,13 +140,13 @@ Atmosphere and worldbuilding travel through repetition across rooms, not through
 
 ---
 
-## Room Output Order
+## Output Render Order
 
-When a player enters a room or types `look`, output is rendered in this order:
+When a player enters an Area or Room, or types `look`, output is rendered in this order:
 
 ```
-[Room name]
-[Room description]
+[Location breadcrumb]
+[Description]
                           ← blank line
 [Fixture state lines]     ← one per visible fixture, state-aware
 [Object room-look lines]  ← one per object on the floor
@@ -150,31 +154,59 @@ When a player enters a room or types `look`, output is rendered in this order:
 Exits: [directions]
 ```
 
-The **room description** sets the space and atmosphere. It does not describe fixtures in detail — at most a sensory hint that a fixture exists ("heat rolling from the north wall"). The **fixture state line** is where the fixture announces itself. The player can then `look at <fixture>` for more.
+### Location Breadcrumb
+
+The first line of every location output is a spatial breadcrumb, not a bare name. It tells the player where they are in the world hierarchy without requiring a separate `where` command.
+
+```
+In an Area:   Zone Name > Area Name
+In a Room:    Zone Name > Building Name > Room Name
+```
+
+The **Zone Name** is the geographic zone the location belongs to. The **Area Name** or **Building Name** is the mid-tier context — the outdoor area or building cluster. The **Room Name** is the specific space. For a Room that is not part of a multi-room building cluster, the mid-tier segment is the Area the building is entered from.
+
+Examples:
+```
+Firstfall > Engineering Bay > Main Workshop
+Firstfall > Settler Quarter > Wall Garden
+Southern Debris Field > Crumbling Bluff Path
+Perihelion Bay Zone > Harbor Dock
+Firstfall > Medical Facility > Treatment Bay
+```
+
+The breadcrumb uses `>` as the separator. No trailing punctuation. Title-cased. The full breadcrumb is the location title — there is no separate "room name" line distinct from it.
+
+**Breadcrumb on movement:** The breadcrumb line is shown every time a player moves (strides between Areas, enters a Room, exits a Room). It is the first thing printed on any move event, followed immediately by the description.
+
+**AI note:** When generating a name for an Area or Room, you are generating only the rightmost segment of the breadcrumb. The Zone and mid-tier context are prepended by the renderer automatically. Name the specific space; the system provides the hierarchy.
+
+The **description** sets the space and atmosphere. It does not describe fixtures in detail — at most a sensory hint that a fixture exists ("heat rolling from the north wall"). The **fixture state line** is where the fixture announces itself. The player can then `look at <fixture>` for more.
 
 Fixture state lines are single sentences written to the same standard as room descriptions: concrete, sensory, present tense, no interpretation. They change based on the fixture's current state — a cold forge and a running forge have different lines. Coherence fixtures have state lines that change with global threat level.
 
 ---
 
-## Room Length
+## Description Length
 
-- **Transit rooms** (corridors, paths): 2–4 sentences. They exist to move through, not to study.
-- **Key rooms** (faction hubs, major NPCs, significant locations): 5–8 sentences. Density earns attention.
-- **Critical narrative rooms** (Disembarkation Ramp, Assignment Board): As long as the moment demands, no longer.
+- **Transit Areas / Rooms** (corridors, paths, connecting spaces): 2–4 sentences. They exist to move through, not to study.
+- **Key Areas / Rooms** (faction hubs, major NPCs, significant locations): 5–8 sentences. Density earns attention.
+- **Critical narrative spaces** (Disembarkation Ramp, Assignment Board): As long as the moment demands, no longer.
 
 ---
 
-## Evolving Rooms (ML/LLM Integration Context)
+## Evolving Areas and Rooms (ML/LLM Integration Context)
 
-When feeding a room to an LLM for evolution, aging, or expansion, provide:
+Areas evolve primarily from traffic and use — see `design/world-structure.md` for the evolution model. When feeding an Area or Room to an LLM for evolution, aging, or expansion, provide:
 
 1. **This document** as system context / style guide
-2. **The room's current description** (verbatim)
-3. **Zone state**: age, population, current Coherence threat level
-4. **Relevant world events**: faction changes, resource surges or shortages, Corporate pressure level
-5. **Instruction type**: `evolve` (time passing), `age` (deterioration), `expand` (add a room), `react` (respond to a player event)
+2. **The Area or Room's current description** (verbatim)
+3. **Evolution stage** (for Areas): current and target stage if evolving
+4. **Zone state**: biome, Coherence level, faction footprint
+5. **Adjacent Area/Room context**: 1–2 neighboring descriptions for continuity
+6. **Relevant world events**: faction changes, resource surges or shortages, Corporate pressure level
+7. **Instruction type**: `evolve` (traffic-driven change), `age` (time passing, devolution), `expand` (generate adjacent Area), `build` (add a Room to an Area), `react` (respond to a world event)
 
-The LLM should produce changes that reflect time and event, not rewrites that change the room's architectural purpose. A room that was a supply depot when the colony was new should still be a supply depot when it's three years old — but the shelves may be different, the personnel may have changed, and the walls may have settler additions.
+The LLM should produce changes that reflect the instruction, not rewrites that change the space's fundamental nature. A supply depot under resource pressure should still be a supply depot — but the shelves are different, the wear shows, the mood has shifted.
 
 **Do not** ask the LLM to rewrite descriptions from scratch without providing the current description. Context continuity matters.
 
@@ -184,13 +216,15 @@ The LLM should produce changes that reflect time and event, not rewrites that ch
 
 Before committing a zone, verify:
 
-- [ ] Every room is independently intelligible without knowing adjacent rooms
-- [ ] No room names an adjacent room in its description
+- [ ] Every Area and Room is independently intelligible without knowing adjacent spaces
+- [ ] No Area or Room names an adjacent space in its description
 - [ ] Exit hints use sensory/physical language, not destination names
 - [ ] Corporate spaces feel Corporate; settler spaces feel settler
-- [ ] Outdoor rooms acknowledge The Eye without dramatizing it (except first view)
+- [ ] Outdoor Areas acknowledge The Eye without dramatizing it (except first view)
 - [ ] The Coherence is never named or explained — only observed
 - [ ] Descriptions of strange planet behavior say what is perceived, not what it means
-- [ ] No room tells the player how to feel
+- [ ] No description tells the player how to feel
 - [ ] Dead, missing, or absent people are present as evidence (empty bunks, roster dates, wear patterns), not statements
+- [ ] Area evolution stage is consistent with its description (a Pristine Area has no worn paths; a Trail has clear infrastructure)
+- [ ] Rooms (buildings) reference their enclosure and construction, not open terrain
 

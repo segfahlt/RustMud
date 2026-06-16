@@ -27,7 +27,7 @@ Exact names are **theme-dependent**, but rough archetypes:
 |------------|---------|
 | Smithing | Weapons, armor, metal tools |
 | Leatherworking | Light armor, bags, saddles |
-- Alchemy | Potions, poisons, reagents |
+| Alchemy | Potions, poisons, reagents |
 | Cooking | Food/drink that provides buffs |
 | Enchanting | Adds magical properties to existing items |
 | Jewelcrafting | Rings, amulets, gems |
@@ -59,7 +59,7 @@ Recipes define inputs → output. They are either:
 }
 ```
 
-`tool_required` means the player must be in a room that has that fixture (a forge, an alchemy bench, a cooking fire).
+`tool_required` means the player must be in an Area or Room that has that fixture (a forge, an alchemy bench, a cooking fire).
 
 ---
 

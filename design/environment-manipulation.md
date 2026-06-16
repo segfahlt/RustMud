@@ -62,11 +62,11 @@ Regardless of flavor, effects fall into these functional buckets:
 
 This is where the system gets unique. Classic MUDs treat spells as combat buttons. A more interesting model: spells change the environment.
 
-- `fireball` cast in a library could set the room on fire
+- `fireball` cast in a library could set the Area or Room on fire
 - `freeze` could create ice on the floor (movement penalty, fixture)
 - `earthquake` could collapse exits temporarily
-- `summon water` could flood a room
-- Room state (on fire, flooded, frozen) persists in `WorldSave.rooms` and affects all players in it
+- `summon water` could flood an Area or Room
+- Location state (on fire, flooded, frozen) persists in `WorldSave` and affects all players in it
 
 This interacts heavily with the **fixtures** system — fire, ice, and water could be temporary fixtures with their own look/examine descriptions and interaction triggers.
 
