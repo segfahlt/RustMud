@@ -13,7 +13,7 @@ use rustmud::persist::{
     AccountFile, CharacterFile, CharacterRef, CharacterSave, Permission, WorldSave,
 };
 use rustmud::proto::{GameMsg, GatewayMsg};
-use rustmud::world::loader::load_world;
+use rustmud::world::loader::{flush_room_id_sequence, load_world};
 use rustmud::world::{AreaRef, HexCoord, PlayerLocation, World};
 
 const SOCKET_PATH:  &str = "/tmp/rustmud.sock";
@@ -601,6 +601,8 @@ async fn do_save(
     }
     write_world_save(save, Path::new(SAVE_PATH))
         .unwrap_or_else(|e| eprintln!("Save failed: {e}"));
+    flush_room_id_sequence(Path::new("data"), &state.world)
+        .unwrap_or_else(|e| eprintln!("Room ID flush failed: {e}"));
 }
 
 fn home_loc_for(character_id: &str) -> PlayerLocation {

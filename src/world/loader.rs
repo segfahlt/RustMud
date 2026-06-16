@@ -170,7 +170,22 @@ pub fn load_world(data_dir: &Path) -> Result<World, LoadError> {
         return Err(LoadError::InvalidWorld(errors));
     }
 
+    // Seed the room ID sequence above the highest statically assigned room ID.
+    let max_static = world.rooms.keys().copied().max().unwrap_or(0);
+    let file_val: u32 = fs::read_to_string(data_dir.join("state").join("last_room_id"))
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+    world.seed_room_id_seq(max_static.max(file_val));
+
     Ok(world)
+}
+
+/// Writes the current room ID sequence counter to `data/state/last_room_id`.
+/// Call on every graceful shutdown so dynamic IDs remain unique across restarts.
+pub fn flush_room_id_sequence(data_dir: &Path, world: &World) -> io::Result<()> {
+    let path = data_dir.join("state").join("last_room_id");
+    fs::write(path, format!("{}\n", world.room_id_seq_snapshot()))
 }
 
 pub fn load_worldmap(data_dir: &Path) -> WorldMap {

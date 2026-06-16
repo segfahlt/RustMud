@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 pub mod area;
 pub mod fixture;
@@ -24,6 +25,7 @@ pub struct World {
     pub rooms:       HashMap<u32, Room>,
     pub object_registry: ObjectRegistry,
     pub world_map:       WorldMap,
+    room_id_seq:     AtomicU32,
 }
 
 impl Default for World {
@@ -37,7 +39,24 @@ impl World {
             rooms:           HashMap::new(),
             object_registry: HashMap::new(),
             world_map:       WorldMap::empty(),
+            room_id_seq:     AtomicU32::new(0),
         }
+    }
+
+    /// Returns the next unique room ID (increments the sequence).
+    pub fn next_room_id(&self) -> u32 {
+        self.room_id_seq.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    /// Seeds the sequence from the highest previously issued ID.
+    /// Called by the loader after all static rooms are registered.
+    pub fn seed_room_id_seq(&self, last_issued: u32) {
+        self.room_id_seq.store(last_issued, Ordering::Relaxed);
+    }
+
+    /// Returns the last issued room ID (the value to persist on shutdown).
+    pub fn room_id_seq_snapshot(&self) -> u32 {
+        self.room_id_seq.load(Ordering::Relaxed)
     }
 
     // --- Zone / Area API ---
