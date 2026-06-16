@@ -425,43 +425,43 @@ async fn on_command(
     let text = match parse(&input) {
         Ok(Command::Shutdown) => {
             if !has_perm(&permissions, Permission::Admin) {
-                "Permission denied.\n\n> ".to_string()
+                "Permission denied.\n\n{c}>{/} ".to_string()
             } else {
                 send(writer, GatewayMsg::Broadcast {
                     text: "\n*** The game is shutting down. Goodbye! ***\n".to_string(),
                 }).await;
                 let _ = signal_tx.send(Signal::Shutdown).await;
-                "Shutdown signal sent.\n\n> ".to_string()
+                "Shutdown signal sent.\n\n{c}>{/} ".to_string()
             }
         }
         Ok(Command::Reboot) => {
             if !has_perm(&permissions, Permission::Dev) {
-                "Permission denied.\n\n> ".to_string()
+                "Permission denied.\n\n{c}>{/} ".to_string()
             } else {
                 send(writer, GatewayMsg::Broadcast {
                     text: "\n*** The game is rebooting. Hold tight... ***\n".to_string(),
                 }).await;
                 let _ = signal_tx.send(Signal::Reboot).await;
-                "Reboot signal sent.\n\n> ".to_string()
+                "Reboot signal sent.\n\n{c}>{/} ".to_string()
             }
         }
         Ok(Command::RebootRefresh) => {
             if !has_perm(&permissions, Permission::Admin) {
-                "Permission denied.\n\n> ".to_string()
+                "Permission denied.\n\n{c}>{/} ".to_string()
             } else {
                 send(writer, GatewayMsg::Broadcast {
                     text: "\n*** The game is rebooting with a player reset. ***\n".to_string(),
                 }).await;
                 let _ = signal_tx.send(Signal::RebootRefresh).await;
-                "Reboot refresh signal sent.\n\n> ".to_string()
+                "Reboot refresh signal sent.\n\n{c}>{/} ".to_string()
             }
         }
         Ok(Command::Teleport(loc)) => {
             if !has_perm(&permissions, Permission::Admin) {
-                "Permission denied.\n\n> ".to_string()
+                "Permission denied.\n\n{c}>{/} ".to_string()
             } else {
                 let output = teleport(loc, client_id, state);
-                format!("{output}\n> ")
+                format!("{output}\n{{c}}>{{/}} ")
             }
         }
         Ok(Command::Quit) => {
@@ -479,9 +479,9 @@ async fn on_command(
                 state.remove_player(client_id);
                 return None;
             }
-            format!("{output}\n> ")
+            format!("{output}\n{{c}}>{{/}} ")
         }
-        Err(e) => format!("{e}\n\n> "),
+        Err(e) => format!("{e}\n\n{{c}}>{{/}} "),
     };
     send(writer, GatewayMsg::Output { client_id, text }).await;
     Some(SessionState::Playing { account_id, character_id, permissions })
@@ -528,9 +528,9 @@ async fn restore_character(
 
     let loc_desc = describe_location(client_id, state);
     let text = if is_new {
-        format!("{loc_desc}\n> ")
+        format!("{loc_desc}\n{{c}}>{{/}} ")
     } else {
-        format!("Welcome back, {display_name}!\n\n{loc_desc}\n> ")
+        format!("Welcome back, {display_name}!\n\n{loc_desc}\n{{c}}>{{/}} ")
     };
     send(writer, GatewayMsg::Output { client_id, text }).await;
 

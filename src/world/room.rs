@@ -86,12 +86,12 @@ impl Room {
         };
 
         let crumb = if self.breadcrumb_building.is_empty() {
-            format!("[ {} > {} ]", self.breadcrumb_zone, self.name)
+            format!("{{Y}}[ {} > {} ]{{/}}", self.breadcrumb_zone, self.name)
         } else {
-            format!("[ {} > {} > {} ]", self.breadcrumb_zone, self.breadcrumb_building, self.name)
+            format!("{{Y}}[ {} > {} > {} ]{{/}}", self.breadcrumb_zone, self.breadcrumb_building, self.name)
         };
         let header = if is_admin {
-            format!("{} #{}", crumb, self.id)
+            format!("{} {{K}}#{}{{/}}", crumb, self.id)
         } else {
             crumb
         };
@@ -116,7 +116,7 @@ impl Room {
             }
         }
 
-        out.push_str(&format!("\nExits: {}\n", exits));
+        out.push_str(&format!("\n{{c}}Exits:{{/}} {}\n", exits));
         out
     }
 }
@@ -144,6 +144,41 @@ mod tests {
         assert!("sideways".parse::<Direction>().is_err());
         assert!("North".parse::<Direction>().is_err()); // case-sensitive at this level
         assert!("".parse::<Direction>().is_err());
+    }
+
+    fn make_room(id: u32) -> Room {
+        Room {
+            id,
+            name:                "Test Room".to_string(),
+            description:         "A plain room.".to_string(),
+            breadcrumb_zone:     "Zone".to_string(),
+            breadcrumb_building: "Building".to_string(),
+            exits:               HashMap::new(),
+            fixtures:            vec![],
+            objects:             vec![],
+        }
+    }
+
+    #[test]
+    fn render_non_admin_no_id() {
+        let room = make_room(7);
+        let out = room.render(&HashMap::new(), false);
+        assert!(out.contains("Test Room"));
+        assert!(!out.contains("#7"));
+    }
+
+    #[test]
+    fn render_admin_shows_id() {
+        let room = make_room(7);
+        let out = room.render(&HashMap::new(), true);
+        assert!(out.contains("#7"));
+    }
+
+    #[test]
+    fn render_includes_exits_label() {
+        let room = make_room(1);
+        let out = room.render(&HashMap::new(), false);
+        assert!(out.contains("Exits:"));
     }
 
     #[test]

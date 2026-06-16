@@ -231,6 +231,28 @@ mod tests {
     }
 
     #[test]
+    fn next_room_id_starts_above_zero() {
+        let world = World::new();
+        let id = world.next_room_id();
+        assert!(id >= 1, "first id should be at least 1, got {id}");
+    }
+
+    #[test]
+    fn next_room_id_increments() {
+        let world = World::new();
+        let a = world.next_room_id();
+        let b = world.next_room_id();
+        assert_eq!(b, a + 1);
+    }
+
+    #[test]
+    fn seed_room_id_seq_respected() {
+        let world = World::new();
+        world.seed_room_id_seq(100);
+        assert_eq!(world.next_room_id(), 101);
+    }
+
+    #[test]
     fn validate_detects_dead_area_exit() {
         let mut world = World::new();
         let mut zone = Zone::new(coord(0, 0), "Zone", "");

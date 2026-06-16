@@ -196,6 +196,29 @@ mod tests {
     #[test] fn parse_alias_se()       { assert!(matches!(parse("se"),        Ok(Command::Go(Direction::SouthEast)))); }
     #[test] fn parse_alias_sw()       { assert!(matches!(parse("sw"),        Ok(Command::Go(Direction::SouthWest)))); }
 
+    // --- teleport ---
+    #[test]
+    fn parse_teleport_room() {
+        assert!(matches!(parse("teleport 1"), Ok(Command::Teleport(PlayerLocation::Room { room_id: 1 }))));
+    }
+    #[test]
+    fn parse_teleport_area() {
+        assert!(matches!(
+            parse("teleport 0 1 5"),
+            Ok(Command::Teleport(PlayerLocation::Area { zone_q: 0, zone_r: 1, area_id: 5 }))
+        ));
+    }
+    #[test]
+    fn parse_goto_alias() {
+        assert!(matches!(parse("goto 2"), Ok(Command::Teleport(PlayerLocation::Room { room_id: 2 }))));
+    }
+    #[test]
+    fn parse_teleport_no_args()  { assert!(matches!(parse("teleport"),     Err(ParseError::MissingTarget(_)))); }
+    #[test]
+    fn parse_teleport_bad_id()   { assert!(matches!(parse("teleport abc"), Err(ParseError::MissingTarget(_)))); }
+    #[test]
+    fn parse_teleport_two_args() { assert!(matches!(parse("teleport 0 1"), Err(ParseError::MissingTarget(_)))); }
+
     // --- help ---
     #[test] fn parse_help()       { assert!(matches!(parse("help"),      Ok(Command::Help(None)))); }
     #[test] fn parse_help_topic() { assert!(matches!(parse("help look"), Ok(Command::Help(Some(_))))); }

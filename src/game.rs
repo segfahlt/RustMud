@@ -109,7 +109,7 @@ fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegi
         dirs.join(", ")
     };
 
-    let header = format!("[ {} > {} ]", zone_name, area.name);
+    let header = format!("{{Y}}[ {} > {} ]{{/}}", zone_name, area.name);
     let mut out = format!("{}\n{}", header, area.description);
 
     let mut extras = Vec::new();
@@ -130,7 +130,7 @@ fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegi
         }
     }
 
-    out.push_str(&format!("\nExits: {}\n", exits));
+    out.push_str(&format!("\n{{c}}Exits:{{/}} {}\n", exits));
     out
 }
 
@@ -449,13 +449,34 @@ fn cmd_inventory(client_id: u32, state: &GameState) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::{Area, AreaRef, HexCoord, World, Zone};
+    use crate::world::{Area, AreaRef, Fixture, HexCoord, Room, World, Zone};
+    use crate::world::fixture::{FixtureCategory, FixturePermanence, FixtureState};
+    use crate::world::hex::{ExitDestination, FixtureRef};
     use std::collections::HashMap;
 
     const CLIENT: u32 = 0;
+    const ROOM_ID: u32 = 10;
 
     fn start_loc() -> PlayerLocation {
         PlayerLocation::area(HexCoord::new(0, 0), 1)
+    }
+
+    fn gateway_fixture() -> Fixture {
+        Fixture {
+            id:               "gate".to_string(),
+            names:            vec!["gate".to_string()],
+            category:         FixtureCategory::Structural,
+            state_lines:      HashMap::new(),
+            look:             String::new(),
+            examine:          String::new(),
+            read:             None,
+            state:            FixtureState::default(),
+            persist_state:    false,
+            coherence_driven: false,
+            permanence:       FixturePermanence::Permanent,
+            minimum_stage:    None,
+            connects_to_room: Some(ROOM_ID),
+        }
     }
 
     fn make_state() -> GameState {
@@ -477,9 +498,29 @@ mod tests {
             exits: HashMap::from([
                 (Direction::South, AreaRef { zone: HexCoord::new(0, 0), area_id: 1 }),
             ]),
+            fixtures: vec![gateway_fixture()],
             ..Area::default()
         });
         world.add_zone(zone);
+
+        // Room connected back to area 2 via fixture ref.
+        world.add_room(Room {
+            id:                  ROOM_ID,
+            name:                "Test Room".to_string(),
+            description:         "A test room.".to_string(),
+            breadcrumb_zone:     "Test Zone".to_string(),
+            breadcrumb_building: "Test Building".to_string(),
+            exits: HashMap::from([
+                (Direction::South, ExitDestination::Fixture(FixtureRef {
+                    zone:       HexCoord::new(0, 0),
+                    area_id:    2,
+                    fixture_id: "gate".to_string(),
+                })),
+            ]),
+            fixtures: vec![],
+            objects:  vec![],
+        });
+
         let mut state = GameState::new(world);
         state.add_player(CLIENT, "tester", "Tester", start_loc());
         state
@@ -539,5 +580,120 @@ mod tests {
         let expected_north = PlayerLocation::area(HexCoord::new(0, 0), 2);
         assert_eq!(state.players[&CLIENT].core.location, expected_north);
         assert_eq!(state.players[&1].core.location, start_loc());
+    }
+
+    // --- direction restriction in area mode ---
+
+    #[test]
+    fn area_mode_rejects_east() {
+        let mut state = make_state();
+        let (out, _) = execute(Command::Go(Direction::East), CLIENT, &mut state);
+        assert!(out.contains("can't go"), "expected can't go, got: {out}");
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
+    }
+
+    #[test]
+    fn area_mode_rejects_up() {
+        let mut state = make_state();
+        let (out, _) = execute(Command::Go(Direction::Up), CLIENT, &mut state);
+        assert!(out.contains("can't go"));
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
+    }
+
+    // --- auto-enter fixture when no area exit in that direction ---
+
+    #[test]
+    fn go_auto_enters_fixture_when_no_area_exit() {
+        let mut state = make_state();
+        // Move to area 2 (has gateway fixture, no north exit — only south back to area 1).
+        execute(Command::Go(Direction::North), CLIENT, &mut state);
+        // go north again: no north area exit → falls through to auto-enter the gateway fixture.
+        execute(Command::Go(Direction::North), CLIENT, &mut state);
+        assert_eq!(
+            state.players[&CLIENT].core.location,
+            PlayerLocation::room(ROOM_ID),
+        );
+    }
+
+    // --- enter_fixture ---
+
+    #[test]
+    fn enter_moves_player_into_room() {
+        let mut state = make_state();
+        execute(Command::Go(Direction::North), CLIENT, &mut state);
+        execute(Command::Enter(Direction::North), CLIENT, &mut state);
+        assert_eq!(state.players[&CLIENT].core.location, PlayerLocation::room(ROOM_ID));
+    }
+
+    #[test]
+    fn enter_from_room_returns_already_inside() {
+        let mut state = make_state();
+        state.players.get_mut(&CLIENT).unwrap().core.location = PlayerLocation::room(ROOM_ID);
+        let (out, _) = execute(Command::Enter(Direction::North), CLIENT, &mut state);
+        assert!(out.contains("already inside"));
+    }
+
+    #[test]
+    fn enter_with_no_fixture_returns_error() {
+        let mut state = make_state();
+        // Area 1 has no gateway fixture.
+        let (out, _) = execute(Command::Enter(Direction::North), CLIENT, &mut state);
+        assert!(out.contains("nothing to enter"));
+    }
+
+    // --- last_area tracking ---
+
+    #[test]
+    fn last_area_set_on_auto_enter() {
+        let mut state = make_state();
+        execute(Command::Go(Direction::North), CLIENT, &mut state);
+        let area2_loc = PlayerLocation::area(HexCoord::new(0, 0), 2);
+        execute(Command::Go(Direction::North), CLIENT, &mut state); // no north exit → auto-enter
+        assert_eq!(state.players[&CLIENT].last_area, Some(area2_loc));
+    }
+
+    #[test]
+    fn exit_room_via_fixture_returns_to_last_area() {
+        let mut state = make_state();
+        execute(Command::Go(Direction::North), CLIENT, &mut state);
+        let area2_loc = PlayerLocation::area(HexCoord::new(0, 0), 2);
+        execute(Command::Go(Direction::North), CLIENT, &mut state); // no north exit → enter room
+        execute(Command::Go(Direction::South), CLIENT, &mut state); // exit via fixture
+        assert_eq!(state.players[&CLIENT].core.location, area2_loc);
+        assert_eq!(state.players[&CLIENT].last_area, None); // consumed
+    }
+
+    // --- teleport ---
+
+    #[test]
+    fn teleport_to_valid_room() {
+        let mut state = make_state();
+        let out = teleport(PlayerLocation::room(ROOM_ID), CLIENT, &mut state);
+        assert_eq!(state.players[&CLIENT].core.location, PlayerLocation::room(ROOM_ID));
+        assert!(!out.contains("No room"));
+    }
+
+    #[test]
+    fn teleport_to_missing_room_returns_error() {
+        let mut state = make_state();
+        let out = teleport(PlayerLocation::room(999), CLIENT, &mut state);
+        assert!(out.contains("No room"));
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
+    }
+
+    #[test]
+    fn teleport_to_valid_area() {
+        let mut state = make_state();
+        let dest = PlayerLocation::area(HexCoord::new(0, 0), 2);
+        teleport(dest, CLIENT, &mut state);
+        assert_eq!(state.players[&CLIENT].core.location, dest);
+    }
+
+    #[test]
+    fn teleport_to_missing_area_returns_error() {
+        let mut state = make_state();
+        let out = teleport(PlayerLocation::area(HexCoord::new(9, 9), 99), CLIENT, &mut state);
+        assert!(out.contains("No area"));
+        assert_eq!(state.players[&CLIENT].core.location, start_loc());
     }
 }
