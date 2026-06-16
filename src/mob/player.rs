@@ -10,6 +10,8 @@ pub struct Player {
     /// The outdoor Area the player last entered a building from.
     /// Used to return them to the right spot when they exit.
     pub last_area:    Option<PlayerLocation>,
+    /// Cached from session permissions — controls admin-only display (e.g. room IDs).
+    pub is_admin:     bool,
 }
 
 impl Player {
@@ -19,6 +21,7 @@ impl Player {
             character_id: player_id.into(),
             inventory:    vec![],
             last_area:    None,
+            is_admin:     false,
         }
     }
 }

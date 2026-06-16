@@ -1,4 +1,4 @@
-use crate::world::Direction;
+use crate::world::{Direction, HexCoord, PlayerLocation};
 use super::{Command, ParseError};
 
 // --- Category ---
@@ -202,6 +202,13 @@ impl Registry {
                 description: "Restart the game. 'reboot refresh' resets all players to home. [Admin|Dev]",
                 parse: parse_reboot,
             },
+            CommandDef {
+                name: "teleport", priority: 20, aliases: &["goto"],
+                category: Category::Admin,
+                usage: "teleport <room_id>  |  teleport <q> <r> <area_id>",
+                description: "Teleport to a room or outdoor area. [Admin]",
+                parse: parse_teleport,
+            },
         ])
     }
 
@@ -356,6 +363,28 @@ fn parse_reboot(rest: &str) -> Result<Command, ParseError> {
         ""        => Ok(Command::Reboot),
         "refresh" => Ok(Command::RebootRefresh),
         _         => Err(ParseError::UnknownCommand(format!("reboot {rest}"))),
+    }
+}
+
+fn parse_teleport(rest: &str) -> Result<Command, ParseError> {
+    let parts: Vec<&str> = rest.split_whitespace().collect();
+    let usage = "Usage: teleport <room_id>  or  teleport <q> <r> <area_id>";
+    match parts.as_slice() {
+        [id] => {
+            let room_id = id.parse::<u32>()
+                .map_err(|_| ParseError::MissingTarget(usage.to_string()))?;
+            Ok(Command::Teleport(PlayerLocation::room(room_id)))
+        }
+        [q, r, area_id] => {
+            let q  = q.parse::<i32>()
+                .map_err(|_| ParseError::MissingTarget(usage.to_string()))?;
+            let r  = r.parse::<i32>()
+                .map_err(|_| ParseError::MissingTarget(usage.to_string()))?;
+            let id = area_id.parse::<u32>()
+                .map_err(|_| ParseError::MissingTarget(usage.to_string()))?;
+            Ok(Command::Teleport(PlayerLocation::area(HexCoord::new(q, r), id)))
+        }
+        _ => Err(ParseError::MissingTarget(usage.to_string())),
     }
 }
 

@@ -6,7 +6,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 
 use rustmud::commands::{parse, Command};
-use rustmud::game::{describe_location, execute, GameState};
+use rustmud::game::{describe_location, execute, teleport, GameState};
 use rustmud::persist::{
     character_name_taken, has_perm, hash_password, load_account, load_character, load_world_save,
     verify_password, write_account, write_character, write_world_save,
@@ -456,6 +456,14 @@ async fn on_command(
                 "Reboot refresh signal sent.\n\n> ".to_string()
             }
         }
+        Ok(Command::Teleport(loc)) => {
+            if !has_perm(&permissions, Permission::Admin) {
+                "Permission denied.\n\n> ".to_string()
+            } else {
+                let output = teleport(loc, client_id, state);
+                format!("{output}\n> ")
+            }
+        }
         Ok(Command::Quit) => {
             let (output, _) = execute(Command::Quit, client_id, state);
             send(writer, GatewayMsg::Output { client_id, text: output }).await;
@@ -504,9 +512,14 @@ async fn restore_character(
     };
 
     state.add_player(client_id, character_id, display_name, location);
+    let permissions = char_file.as_ref()
+        .map(|f| f.permissions.clone())
+        .unwrap_or_else(|| [Permission::Player].into());
+
     if let Some(p) = state.players.get_mut(&client_id) {
         p.core.health     = health;
         p.core.max_health = max_health;
+        p.is_admin        = has_perm(&permissions, Permission::Admin);
         if let Some(cs) = save.characters.get(character_id) {
             p.inventory  = cs.inventory.clone();
             p.last_area  = cs.last_area;
@@ -520,10 +533,6 @@ async fn restore_character(
         format!("Welcome back, {display_name}!\n\n{loc_desc}\n> ")
     };
     send(writer, GatewayMsg::Output { client_id, text }).await;
-
-    let permissions = char_file.as_ref()
-        .map(|f| f.permissions.clone())
-        .unwrap_or_else(|| [Permission::Player].into());
 
     SessionState::Playing { account_id, character_id: character_id.to_string(), permissions }
 }

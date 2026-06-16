@@ -69,7 +69,7 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Help(topic)     => (help_text(topic.as_deref()), true),
         Command::Quit            => ("Farewell.\n".to_string(), false),
         // Admin commands are intercepted in the connection layer before reaching here.
-        Command::Shutdown | Command::Reboot | Command::RebootRefresh =>
+        Command::Shutdown | Command::Reboot | Command::RebootRefresh | Command::Teleport(_) =>
             ("(admin command reached execute — this is a bug)\n".to_string(), true),
     }
 }
@@ -91,8 +91,9 @@ pub fn describe_location(client_id: u32, state: &GameState) -> String {
             }
         }
         PlayerLocation::Room { room_id } => {
+            let is_admin = state.players.get(&client_id).map(|p| p.is_admin).unwrap_or(false);
             match state.world.get_room(room_id) {
-                Some(room) => room.render(&state.world.object_registry),
+                Some(room) => room.render(&state.world.object_registry, is_admin),
                 None       => "(You are in an unregistered room. This is a bug.)\n".to_string(),
             }
         }
@@ -404,6 +405,27 @@ fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
             format!("You drop {}.\n", short)
         }
     }
+}
+
+pub fn teleport(loc: PlayerLocation, client_id: u32, state: &mut GameState) -> String {
+    let exists = match loc {
+        PlayerLocation::Room { room_id } =>
+            state.world.get_room(room_id).is_some(),
+        PlayerLocation::Area { zone_q, zone_r, area_id } =>
+            state.world.get_area(AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id }).is_some(),
+    };
+    if !exists {
+        return match loc {
+            PlayerLocation::Room { room_id } =>
+                format!("No room with id {}.\n", room_id),
+            PlayerLocation::Area { zone_q, zone_r, area_id } =>
+                format!("No area at ({},{}) id={}.\n", zone_q, zone_r, area_id),
+        };
+    }
+    if let Some(p) = state.players.get_mut(&client_id) {
+        p.core.location = loc;
+    }
+    describe_location(client_id, state)
 }
 
 fn cmd_inventory(client_id: u32, state: &GameState) -> String {

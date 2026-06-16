@@ -6,6 +6,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::mpsc;
 
+use rustmud::color::colorize;
 use rustmud::proto::{GameMsg, GatewayMsg};
 
 const TCP_ADDR:    &str = "0.0.0.0:4000";
@@ -17,8 +18,10 @@ type UnixWriter = tokio::net::unix::OwnedWriteHalf;
 
 // Per-connection state the gateway retains across game reboots.
 struct ClientInfo {
-    writer:    TcpWriter,
+    writer:       TcpWriter,
     character_id: Option<String>,  // set once the game authenticates the client
+    // TODO: auto-detect via TTYPE/MTTS telnet negotiation; allow player override with `color on/off`
+    color:        bool,
 }
 
 // All events funnel to the central handler task via this channel.
@@ -57,7 +60,7 @@ async fn main() {
         match event {
             Event::ClientConnected(id, addr, writer) => {
                 eprintln!("Client {id} connected from {addr}");
-                clients.insert(id, ClientInfo { writer, character_id: None });
+                clients.insert(id, ClientInfo { writer, character_id: None, color: true });
                 match &mut game {
                     Some(gw) => send_game(gw, GameMsg::Connect {
                         client_id: id, addr, character_id: None,
@@ -221,7 +224,8 @@ async fn unix_accept_loop(tx: mpsc::Sender<Event>) {
 
 async fn write_client(clients: &mut HashMap<ClientId, ClientInfo>, id: ClientId, text: &str) {
     if let Some(info) = clients.get_mut(&id) {
-        let _ = info.writer.write_all(text.as_bytes()).await;
+        let processed = colorize(text, info.color);
+        let _ = info.writer.write_all(processed.as_bytes()).await;
     }
 }
 

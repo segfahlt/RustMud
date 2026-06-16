@@ -3,7 +3,7 @@ pub mod registry;
 use std::fmt;
 use std::sync::OnceLock;
 
-use crate::world::Direction;
+use crate::world::{Direction, PlayerLocation};
 use registry::{Category, Registry};
 
 // --- Command ---
@@ -24,6 +24,7 @@ pub enum Command {
     Shutdown,                   // kill game + gateway  [Admin]
     Reboot,                     // graceful game restart [Admin|Dev]
     RebootRefresh,              // game restart + player reset [Admin]
+    Teleport(PlayerLocation),   // teleport to room/area  [Admin]
 }
 
 // --- ParseError ---

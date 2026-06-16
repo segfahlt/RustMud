@@ -76,7 +76,7 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn render(&self, registry: &ObjectRegistry) -> String {
+    pub fn render(&self, registry: &ObjectRegistry, is_admin: bool) -> String {
         let exits = if self.exits.is_empty() {
             "none".to_string()
         } else {
@@ -85,10 +85,15 @@ impl Room {
             dirs.join(", ")
         };
 
-        let header = if self.breadcrumb_building.is_empty() {
+        let crumb = if self.breadcrumb_building.is_empty() {
             format!("[ {} > {} ]", self.breadcrumb_zone, self.name)
         } else {
             format!("[ {} > {} > {} ]", self.breadcrumb_zone, self.breadcrumb_building, self.name)
+        };
+        let header = if is_admin {
+            format!("{} #{}", crumb, self.id)
+        } else {
+            crumb
         };
 
         let mut out = format!("{}\n{}", header, self.description);

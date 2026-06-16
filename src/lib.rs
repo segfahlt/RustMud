@@ -1,3 +1,4 @@
+pub mod color;
 pub mod commands;
 pub mod game;
 pub mod mob;
