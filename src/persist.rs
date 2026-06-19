@@ -9,6 +9,7 @@ use argon2::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::mob::Equipment;
 use crate::world::{ObjectInstance, PlayerLocation};
 
 // --- Permissions ---
@@ -77,6 +78,8 @@ pub struct CharacterSave {
     pub max_health: u32,
     #[serde(default)]
     pub inventory:  Vec<ObjectInstance>,
+    #[serde(default)]
+    pub equipment:  Equipment,
     /// Last Area visited — used to return players when exiting a Room cluster.
     #[serde(default)]
     pub last_area:  Option<PlayerLocation>,

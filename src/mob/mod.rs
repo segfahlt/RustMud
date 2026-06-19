@@ -6,7 +6,7 @@ pub mod player;
 pub use core::MobCore;
 pub use monster::Monster;
 pub use npc::Npc;
-pub use player::Player;
+pub use player::{Equipment, Player};
 
 use crate::world::PlayerLocation;
 

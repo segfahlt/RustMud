@@ -84,6 +84,34 @@ impl Registry {
                 parse: parse_read,
             },
             CommandDef {
+                name: "wield", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "wield <weapon>",
+                description: "Wield a weapon in your main hand.",
+                parse: parse_wield,
+            },
+            CommandDef {
+                name: "wear", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "wear <armor>",
+                description: "Put on a piece of armor.",
+                parse: parse_wear,
+            },
+            CommandDef {
+                name: "remove", priority: 15, aliases: &["unwield", "unequip"],
+                category: Category::Items,
+                usage: "remove <item>",
+                description: "Remove a worn or wielded item.",
+                parse: parse_remove,
+            },
+            CommandDef {
+                name: "equipment", priority: 10, aliases: &["eq"],
+                category: Category::Items,
+                usage: "equipment",
+                description: "Show what you have equipped.",
+                parse: |_| Ok(Command::Equipment),
+            },
+            CommandDef {
                 name: "inventory", priority: 10, aliases: &["i", "inv"],
                 category: Category::Items,
                 usage: "inventory",
@@ -349,6 +377,27 @@ fn parse_read(rest: &str) -> Result<Command, ParseError> {
         return Err(ParseError::MissingTarget("Read what?".to_string()));
     }
     Ok(Command::Read(rest.to_string()))
+}
+
+fn parse_wield(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Wield what?".to_string()));
+    }
+    Ok(Command::Wield(rest.to_string()))
+}
+
+fn parse_wear(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Wear what?".to_string()));
+    }
+    Ok(Command::Wear(rest.to_string()))
+}
+
+fn parse_remove(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Remove what?".to_string()));
+    }
+    Ok(Command::Remove(rest.to_string()))
 }
 
 fn parse_go(rest: &str) -> Result<Command, ParseError> {

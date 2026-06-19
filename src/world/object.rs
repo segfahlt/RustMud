@@ -48,6 +48,39 @@ impl ObjectCategory {
 }
 
 // ---------------------------------------------------------------------------
+// EquipSlot  (which slot on the body an item occupies when equipped)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EquipSlot {
+    MainHand,
+    OffHand,
+    Body,
+    Head,
+    Hands,
+    Feet,
+}
+
+impl EquipSlot {
+    pub fn all() -> [EquipSlot; 6] {
+        [EquipSlot::MainHand, EquipSlot::OffHand, EquipSlot::Body,
+         EquipSlot::Head, EquipSlot::Hands, EquipSlot::Feet]
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            EquipSlot::MainHand => "main hand",
+            EquipSlot::OffHand  => "off hand",
+            EquipSlot::Body     => "body",
+            EquipSlot::Head     => "head",
+            EquipSlot::Hands    => "hands",
+            EquipSlot::Feet     => "feet",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // FixturePermanence  (moved here from fixture.rs)
 // ---------------------------------------------------------------------------
 
@@ -216,6 +249,9 @@ pub struct ObjectTemplate {
     pub flags:       Vec<ObjectFlag>,
     #[serde(default)]
     pub value:       u32,
+    /// Which equipment slot this item occupies. Required for Armor; Weapon → main_hand via `wield`.
+    #[serde(default)]
+    pub equip_slot:  Option<EquipSlot>,
 
     // --- Fixture-specific fields (None / false for regular carriable objects) ---
 

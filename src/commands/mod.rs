@@ -27,6 +27,10 @@ pub enum Command {
     Get(String),                // get <thing>
     Drop(String),               // drop <thing>
     Read(String),               // read <thing>
+    Wield(String),              // wield <weapon>
+    Wear(String),               // wear <armor>
+    Remove(String),             // remove <item>  — unequip
+    Equipment,                  // equipment | eq
     Inventory,                  // inventory | i
     WorldMap,                   // wmap | worldmap
     Help(Option<String>),       // help | help <topic>
@@ -180,8 +184,16 @@ mod tests {
     #[test] fn parse_drop()           { assert!(matches!(parse("drop knife"),Ok(Command::Drop(_)))); }
     #[test] fn parse_get_nothing()    { assert!(matches!(parse("get"),       Err(ParseError::MissingTarget(_)))); }
     #[test] fn parse_drop_nothing()   { assert!(matches!(parse("drop"),      Err(ParseError::MissingTarget(_)))); }
-    #[test] fn parse_read()           { assert!(matches!(parse("read note"),  Ok(Command::Read(_)))); }
-    #[test] fn parse_read_nothing()   { assert!(matches!(parse("read"),       Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_read()           { assert!(matches!(parse("read note"),   Ok(Command::Read(_)))); }
+    #[test] fn parse_read_nothing()   { assert!(matches!(parse("read"),        Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_wield()          { assert!(matches!(parse("wield knife"), Ok(Command::Wield(_)))); }
+    #[test] fn parse_wield_nothing()  { assert!(matches!(parse("wield"),       Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_wear()           { assert!(matches!(parse("wear vest"),   Ok(Command::Wear(_)))); }
+    #[test] fn parse_wear_nothing()   { assert!(matches!(parse("wear"),        Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_remove()         { assert!(matches!(parse("remove vest"), Ok(Command::Remove(_)))); }
+    #[test] fn parse_remove_nothing() { assert!(matches!(parse("remove"),      Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_equipment()      { assert!(matches!(parse("equipment"),   Ok(Command::Equipment))); }
+    #[test] fn parse_eq_alias()       { assert!(matches!(parse("eq"),          Ok(Command::Equipment))); }
 
     // --- go ---
     #[test] fn parse_go_north()     { assert!(matches!(parse("go north"),     Ok(Command::Go(Direction::North)))); }

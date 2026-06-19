@@ -546,6 +546,7 @@ async fn restore_character(
         p.is_admin        = has_perm(&permissions, Permission::Admin);
         if let Some(cs) = save.characters.get(character_id) {
             p.inventory  = cs.inventory.clone();
+            p.equipment  = cs.equipment.clone();
             p.last_area  = cs.last_area;
         }
     }
@@ -623,7 +624,8 @@ async fn do_save(
                     .map(|p| (p.core.max_health, p.inventory.clone()))
                     .unwrap_or((100, vec![]));
                 Some(CharacterSave {
-                    location: home, health, max_health: health, inventory, last_area: None,
+                    location: home, health, max_health: health, inventory,
+                    equipment: Default::default(), last_area: None,
                 })
             } else {
                 state.snapshot_character(*client_id)

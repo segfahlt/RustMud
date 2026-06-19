@@ -48,6 +48,52 @@
       "weight": "light", "bulk": "small", "material": "composite",
       "flags": ["EARTH_ORIGIN"],
       "value": 300
+    },
+    {
+      "id": "hunting_knife",
+      "names": ["knife", "hunting knife"],
+      "short": "a hunting knife",
+      "room_look": "A hunting knife rests on the equipment rack.",
+      "description": "A full-tang fixed blade, Colonial Logistics stamp on the ricasso. The edge is still factory-sharp. Half the people who came through the Perihelion declared one of these. The other half brought them undeclared.",
+      "category": "weapon",
+      "weight": "light", "bulk": "small", "material": "metal",
+      "flags": ["EARTH_ORIGIN", "CORPORATE_ISSUE"],
+      "value": 35
+    },
+    {
+      "id": "stun_baton",
+      "names": ["baton", "stun baton"],
+      "short": "a stun baton",
+      "room_look": "A stun baton hangs on the wall beside the guard post.",
+      "description": "Corporate Security standard issue. Compact, polymer-cased, charge indicator on the grip. Three settings: warn, subdue, and one setting with no label. The charge reads full. Whoever left it here either didn't need it or won't be coming back for it.",
+      "category": "weapon",
+      "weight": "medium", "bulk": "small", "material": "composite",
+      "flags": ["CORPORATE_ISSUE", "RESTRICTED"],
+      "value": 80
+    },
+    {
+      "id": "corporate_vest",
+      "names": ["vest", "corporate vest", "body armor"],
+      "short": "a corporate vest",
+      "room_look": "A corporate body vest hangs on a peg near the equipment rack.",
+      "description": "Standard Corporate Security body armor — ceramic trauma plates over a composite weave base. Rated for low-velocity ballistics and minor blade contact. The plates are intact. The straps have been adjusted for someone considerably larger than you, or considerably smaller.",
+      "category": "armor",
+      "weight": "medium", "bulk": "medium", "material": "composite",
+      "flags": ["CORPORATE_ISSUE"],
+      "equip_slot": "body",
+      "value": 120
+    },
+    {
+      "id": "work_gloves",
+      "names": ["gloves", "work gloves"],
+      "short": "a pair of work gloves",
+      "room_look": "A pair of work gloves sits on the processing counter.",
+      "description": "Heavy-duty synthetic gloves, settler-made from local fiber. The stitching is hand-done, tight and even. They smell of the forge — char and mineral oil. Someone put real time into these, which means they were made here, not shipped from Earth, which means they were made to last.",
+      "category": "armor",
+      "weight": "tiny", "bulk": "tiny", "material": "fabric",
+      "flags": ["SETTLER_MADE"],
+      "equip_slot": "hands",
+      "value": 15
     }
   ],
   "rooms": [

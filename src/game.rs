@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crate::commands::{help_text, Command, OHelpQuery};
-use crate::world::object::{Bulk, Material, ObjectCategory, ObjectFlag, ObjectTemplate, Weight};
+use crate::world::object::{Bulk, EquipSlot, Material, ObjectCategory, ObjectFlag, ObjectTemplate, Weight};
 use crate::world::AreaRef;
-use crate::mob::{MobCore, Player};
+use crate::mob::{Equipment, MobCore, Player};
 use crate::persist::CharacterSave;
 use crate::world::{Area, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
 
@@ -39,6 +39,7 @@ impl GameState {
             health:     p.core.health,
             max_health: p.core.max_health,
             inventory:  p.inventory.clone(),
+            equipment:  p.equipment.clone(),
             last_area:  p.last_area,
         })
     }
@@ -64,6 +65,10 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Get(target)     => (cmd_get(&target, client_id, state), true),
         Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
         Command::Read(target)    => (cmd_read(&target, client_id, state), true),
+        Command::Wield(target)   => (cmd_wield(&target, client_id, state), true),
+        Command::Wear(target)    => (cmd_wear(&target, client_id, state), true),
+        Command::Remove(target)  => (cmd_remove(&target, client_id, state), true),
+        Command::Equipment       => (cmd_equipment(client_id, state), true),
         Command::Inventory       => (cmd_inventory(client_id, state), true),
         Command::WorldMap        => (state.world.world_map.render(), true),
         Command::Help(topic)     => (help_text(topic.as_deref()), true),
@@ -484,6 +489,124 @@ fn cmd_inventory(client_id: u32, state: &GameState) -> String {
     out
 }
 
+fn cmd_wield(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let found = player.inventory.iter().enumerate().find_map(|(idx, obj)| {
+        registry.get(&obj.template_id).and_then(|tmpl| {
+            if tmpl.matches_name(target) { Some((idx, tmpl.clone())) } else { None }
+        })
+    });
+
+    let (idx, tmpl) = match found {
+        None => return format!("You aren't carrying any '{}'.\n", target),
+        Some(x) => x,
+    };
+
+    if !matches!(tmpl.category, ObjectCategory::Weapon) {
+        return format!("You can't wield {}.\n", tmpl.short);
+    }
+
+    let player = state.players.get(&client_id).unwrap();
+    if let Some(current) = &player.equipment.main_hand {
+        let cur_short = current.short(registry).to_string();
+        return format!("You are already wielding {}. Remove it first.\n", cur_short);
+    }
+    let is_two_handed = tmpl.flags.contains(&ObjectFlag::TwoHanded);
+    if is_two_handed {
+        if let Some(current) = &player.equipment.off_hand {
+            let cur_short = current.short(registry).to_string();
+            return format!("You need a free off hand — {} is in the way. Remove it first.\n", cur_short);
+        }
+    }
+
+    let obj = state.players.get_mut(&client_id).unwrap().inventory.remove(idx);
+    let short = obj.short(registry).to_string();
+    state.players.get_mut(&client_id).unwrap().equipment.main_hand = Some(obj);
+    format!("You wield {}.\n", short)
+}
+
+fn cmd_wear(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let found = player.inventory.iter().enumerate().find_map(|(idx, obj)| {
+        registry.get(&obj.template_id).and_then(|tmpl| {
+            if tmpl.matches_name(target) { Some((idx, tmpl.clone())) } else { None }
+        })
+    });
+
+    let (idx, tmpl) = match found {
+        None => return format!("You aren't carrying any '{}'.\n", target),
+        Some(x) => x,
+    };
+
+    if !matches!(tmpl.category, ObjectCategory::Armor) {
+        return format!("You can't wear {}.\n", tmpl.short);
+    }
+
+    let slot = match tmpl.equip_slot {
+        Some(s) => s,
+        None    => return format!("{} has no equipment slot defined.\n", tmpl.short),
+    };
+
+    let player = state.players.get(&client_id).unwrap();
+    if let Some(current) = player.equipment.slot(slot) {
+        let cur_short = current.short(registry).to_string();
+        return format!(
+            "You are already wearing {} on your {}. Remove it first.\n",
+            cur_short, slot.label()
+        );
+    }
+
+    let obj = state.players.get_mut(&client_id).unwrap().inventory.remove(idx);
+    let short = obj.short(registry).to_string();
+    *state.players.get_mut(&client_id).unwrap().equipment.slot_mut(slot) = Some(obj);
+    format!("You wear {} on your {}.\n", short, slot.label())
+}
+
+fn cmd_remove(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let slot = match player.equipment.find_equipped(target, registry) {
+        Some(s) => s,
+        None    => return format!("You aren't wearing or wielding any '{}'.\n", target),
+    };
+
+    let obj = state.players.get_mut(&client_id).unwrap().equipment.slot_mut(slot).take().unwrap();
+    let short = obj.short(registry).to_string();
+    state.players.get_mut(&client_id).unwrap().inventory.push(obj);
+    format!("You remove {}.\n", short)
+}
+
+fn cmd_equipment(client_id: u32, state: &GameState) -> String {
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+    let registry = &state.world.object_registry;
+    let mut out = "{Y}Equipment{/}\n".to_string();
+    for slot in EquipSlot::all() {
+        let entry = match player.equipment.slot(slot) {
+            Some(obj) => format!("{} ({})", obj.short(registry), obj.condition.label()),
+            None      => "\u{2014}".to_string(),
+        };
+        out.push_str(&format!("  {:<12}{}\n", format!("{}:", slot.label()), entry));
+    }
+    out
+}
+
 fn cmd_ohelp(query: &OHelpQuery, state: &GameState) -> String {
     match query {
         OHelpQuery::Overview => ohelp_overview(),
@@ -711,6 +834,7 @@ mod tests {
             material:     Default::default(),
             flags:        vec![],
             value:        0,
+            equip_slot:   None,
             state_lines:      None,
             permanence:       None,
             minimum_stage:    None,
@@ -874,7 +998,7 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            coherence_driven: false, persist_state: false,
+            equip_slot: None, coherence_driven: false, persist_state: false,
         });
 
         // A Data item with no read field — falls back to description.
@@ -890,7 +1014,7 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            coherence_driven: false, persist_state: false,
+            equip_slot: None, coherence_driven: false, persist_state: false,
         });
 
         // A non-Data item with no read field.
@@ -906,7 +1030,7 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            coherence_driven: false, persist_state: false,
+            equip_slot: None, coherence_driven: false, persist_state: false,
         });
 
         state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("note"));
@@ -941,6 +1065,138 @@ mod tests {
         let mut state = make_state();
         let (out, _) = execute(Command::Read("widget".to_string()), CLIENT, &mut state);
         assert!(out.contains("don't see"), "got: {out}");
+    }
+
+    // --- equip (wield / wear / remove / equipment) ---
+
+    fn make_state_with_equip_items() -> GameState {
+        let mut state = make_state();
+        let registry = &mut state.world.object_registry;
+
+        registry.insert("knife".to_string(), ObjectTemplate {
+            id: "knife".to_string(), names: vec!["knife".to_string()],
+            short: "a hunting knife".to_string(), room_look: String::new(),
+            description: "A sturdy hunting knife.".to_string(), read: None,
+            category: ObjectCategory::Weapon,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 10, equip_slot: None,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        registry.insert("baton".to_string(), ObjectTemplate {
+            id: "baton".to_string(), names: vec!["baton".to_string()],
+            short: "a stun baton".to_string(), room_look: String::new(),
+            description: "A Corporate-issue stun baton.".to_string(), read: None,
+            category: ObjectCategory::Weapon,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 30, equip_slot: None,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        registry.insert("vest".to_string(), ObjectTemplate {
+            id: "vest".to_string(), names: vec!["vest".to_string()],
+            short: "a corporate vest".to_string(), room_look: String::new(),
+            description: "Standard Corporate body armor.".to_string(), read: None,
+            category: ObjectCategory::Armor,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 50, equip_slot: Some(EquipSlot::Body),
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        registry.insert("gloves".to_string(), ObjectTemplate {
+            id: "gloves".to_string(), names: vec!["gloves".to_string()],
+            short: "work gloves".to_string(), room_look: String::new(),
+            description: "Worn leather work gloves.".to_string(), read: None,
+            category: ObjectCategory::Armor,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 5, equip_slot: Some(EquipSlot::Hands),
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+
+        let inv = &mut state.players.get_mut(&CLIENT).unwrap().inventory;
+        inv.push(ObjectInstance::new("knife"));
+        inv.push(ObjectInstance::new("baton"));
+        inv.push(ObjectInstance::new("vest"));
+        inv.push(ObjectInstance::new("gloves"));
+        state
+    }
+
+    #[test]
+    fn wield_moves_weapon_to_main_hand() {
+        let mut state = make_state_with_equip_items();
+        let (out, _) = execute(Command::Wield("knife".to_string()), CLIENT, &mut state);
+        assert!(out.contains("wield"), "got: {out}");
+        assert!(state.players[&CLIENT].equipment.main_hand.is_some());
+        assert!(!state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "knife"));
+    }
+
+    #[test]
+    fn wield_blocked_when_hand_occupied() {
+        let mut state = make_state_with_equip_items();
+        execute(Command::Wield("knife".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Wield("baton".to_string()), CLIENT, &mut state);
+        assert!(out.contains("already wielding"), "got: {out}");
+        assert_eq!(state.players[&CLIENT].equipment.main_hand.as_ref().unwrap().template_id, "knife");
+    }
+
+    #[test]
+    fn wield_non_weapon_rejected() {
+        let mut state = make_state_with_equip_items();
+        let (out, _) = execute(Command::Wield("vest".to_string()), CLIENT, &mut state);
+        assert!(out.contains("can't wield"), "got: {out}");
+    }
+
+    #[test]
+    fn wear_moves_armor_to_correct_slot() {
+        let mut state = make_state_with_equip_items();
+        let (out, _) = execute(Command::Wear("vest".to_string()), CLIENT, &mut state);
+        assert!(out.contains("wear"), "got: {out}");
+        assert!(state.players[&CLIENT].equipment.body.is_some());
+    }
+
+    #[test]
+    fn wear_blocked_when_slot_occupied() {
+        let mut state = make_state_with_equip_items();
+        execute(Command::Wear("vest".to_string()), CLIENT, &mut state);
+        // Add a second vest to inventory to try wearing
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("vest"));
+        let (out, _) = execute(Command::Wear("vest".to_string()), CLIENT, &mut state);
+        assert!(out.contains("already wearing"), "got: {out}");
+    }
+
+    #[test]
+    fn wear_non_armor_rejected() {
+        let mut state = make_state_with_equip_items();
+        let (out, _) = execute(Command::Wear("knife".to_string()), CLIENT, &mut state);
+        assert!(out.contains("can't wear"), "got: {out}");
+    }
+
+    #[test]
+    fn remove_returns_item_to_inventory() {
+        let mut state = make_state_with_equip_items();
+        execute(Command::Wear("gloves".to_string()), CLIENT, &mut state);
+        assert!(state.players[&CLIENT].equipment.hands.is_some());
+        let (out, _) = execute(Command::Remove("gloves".to_string()), CLIENT, &mut state);
+        assert!(out.contains("remove"), "got: {out}");
+        assert!(state.players[&CLIENT].equipment.hands.is_none());
+        assert!(state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "gloves"));
+    }
+
+    #[test]
+    fn remove_not_equipped_gives_error() {
+        let mut state = make_state_with_equip_items();
+        let (out, _) = execute(Command::Remove("knife".to_string()), CLIENT, &mut state);
+        assert!(out.contains("aren't wearing"), "got: {out}");
+    }
+
+    #[test]
+    fn equipment_shows_all_slots() {
+        let mut state = make_state_with_equip_items();
+        execute(Command::Wield("knife".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Equipment, CLIENT, &mut state);
+        assert!(out.contains("main hand"), "got: {out}");
+        assert!(out.contains("hunting knife"), "got: {out}");
     }
 
     // --- enter_fixture ---

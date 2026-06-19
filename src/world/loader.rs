@@ -67,6 +67,7 @@ impl FixtureFile {
             material:    Material::default(),
             flags:       vec![],
             value:       0,
+            equip_slot:  None,
             state_lines:      self.state_lines,
             permanence:       Some(self.permanence),
             minimum_stage:    self.minimum_stage,
