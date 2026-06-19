@@ -133,6 +133,39 @@
       "flags": ["SETTLER_MADE"],
       "equip_slot": "hands",
       "value": 15
+    },
+    {
+      "id": "scrap_metal",
+      "names": ["scrap", "scrap metal", "metal scrap"],
+      "short": "scrap metal",
+      "room_look": "A piece of scrap metal lies here.",
+      "description": "Salvaged alloy — bent, corroded at one edge, still structurally sound enough to be useful. Colonists find a use for everything.",
+      "category": "component",
+      "weight": "medium", "bulk": "small", "material": "metal",
+      "flags": ["SALVAGED", "STACKABLE"],
+      "value": 2
+    },
+    {
+      "id": "alien_fiber",
+      "names": ["fiber", "alien fiber", "fiber bundle"],
+      "short": "alien fiber",
+      "room_look": "A bundle of alien fiber rests here.",
+      "description": "Woven filaments, not quite plant and not quite mineral. They come from a species no one has named yet. Colonists have found a dozen uses for them. The Corporate catalog classifies them as 'unregistered biomaterial' and recommends against handling. No one follows this recommendation.",
+      "category": "component",
+      "weight": "tiny", "bulk": "tiny", "material": "composite",
+      "flags": ["ALIEN_MADE", "STACKABLE"],
+      "value": 8
+    },
+    {
+      "id": "credit_chip",
+      "names": ["chip", "credit chip", "credits"],
+      "short": "a credit chip",
+      "room_look": "A credit chip rests here.",
+      "description": "Standard Colonial Credit Authority chip, denomination unmarked — the balance is embedded in the token itself. Corporate systems accept them. Settler barter tends to prefer something you can hold without needing a reader.",
+      "category": "currency",
+      "weight": "tiny", "bulk": "tiny", "material": "composite",
+      "flags": ["STACKABLE"],
+      "value": 1
     }
   ],
   "rooms": [

@@ -292,6 +292,10 @@ impl ObjectTemplate {
     pub fn matches_name(&self, input: &str) -> bool {
         self.names.iter().any(|n| n.starts_with(input))
     }
+
+    pub fn is_stackable(&self) -> bool {
+        self.flags.contains(&ObjectFlag::Stackable)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +316,12 @@ pub struct ObjectInstance {
     /// Current state key for stateful fixtures (e.g. "open", "closed"). None = "default".
     #[serde(default)]
     pub state:       Option<String>,
+    /// Stack size. Always 1 for non-stackable items. Stackable items merge on pickup.
+    #[serde(default = "default_quantity")]
+    pub quantity:    u32,
 }
+
+fn default_quantity() -> u32 { 1 }
 
 impl ObjectInstance {
     pub fn new(template_id: impl Into<String>) -> Self {
@@ -323,7 +332,12 @@ impl ObjectInstance {
             custom_name: None,
             custom_desc: None,
             state:       None,
+            quantity:    1,
         }
+    }
+
+    pub fn new_stack(template_id: impl Into<String>, quantity: u32) -> Self {
+        ObjectInstance { quantity, ..Self::new(template_id) }
     }
 
     pub fn with_condition(mut self, condition: Condition) -> Self {

@@ -386,13 +386,23 @@ fn cmd_consume(target: &str, client_id: u32, state: &mut GameState) -> String {
     }
 }
 
+fn parse_qty_target(input: &str) -> (u32, &str) {
+    let mut parts = input.splitn(2, ' ');
+    let first = parts.next().unwrap_or("");
+    match first.parse::<u32>() {
+        Ok(n) if n > 0 => (n, parts.next().unwrap_or("").trim()),
+        _              => (0, input),  // 0 = "all"
+    }
+}
+
 fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let (qty_req, name) = parse_qty_target(target);
     let loc = match state.players.get(&client_id) {
         Some(p) => p.core.location,
         None    => return String::new(),
     };
 
-    let result: Option<(usize, ObjectInstance, String)> = match loc {
+    let result: Option<(usize, ObjectInstance, String, bool)> = match loc {
         PlayerLocation::Area { zone_q, zone_r, area_id } => {
             let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
             let area = match state.world.get_area(area_ref) {
@@ -402,7 +412,9 @@ fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
             let registry = &state.world.object_registry;
             area.objects.iter().enumerate().find_map(|(idx, obj)| {
                 registry.get(&obj.template_id).and_then(|tmpl| {
-                    if tmpl.matches_name(target) { Some((idx, obj.clone(), tmpl.short.clone())) } else { None }
+                    if tmpl.matches_name(name) {
+                        Some((idx, obj.clone(), tmpl.short.clone(), tmpl.is_stackable()))
+                    } else { None }
                 })
             })
         }
@@ -414,46 +426,103 @@ fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
             let registry = &state.world.object_registry;
             room.objects.iter().enumerate().find_map(|(idx, obj)| {
                 registry.get(&obj.template_id).and_then(|tmpl| {
-                    if tmpl.matches_name(target) { Some((idx, obj.clone(), tmpl.short.clone())) } else { None }
+                    if tmpl.matches_name(name) {
+                        Some((idx, obj.clone(), tmpl.short.clone(), tmpl.is_stackable()))
+                    } else { None }
                 })
             })
         }
     };
 
     // Fixture-category objects are fixed in place and cannot be picked up.
-    if let Some((_, ref obj, _)) = result {
+    if let Some((_, ref obj, _, _)) = result {
         if let Some(tmpl) = state.world.object_registry.get(&obj.template_id) {
             if tmpl.category.is_fixture() {
-                return format!("You can't pick that up.\n");
+                return "You can't pick that up.\n".to_string();
             }
         }
     }
 
     match result {
-        None => format!("You don't see any '{}' here.\n", target),
-        Some((idx, obj, short)) => {
-            match loc {
-                PlayerLocation::Area { zone_q, zone_r, area_id } => {
-                    let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
-                    if let Some(area) = state.world.get_area_mut(area_ref) {
-                        area.objects.remove(idx);
+        None => format!("You don't see any '{}' here.\n", name),
+        Some((idx, mut obj, short, stackable)) => {
+            if stackable {
+                let available = obj.quantity;
+                let taking = if qty_req == 0 { available } else { qty_req.min(available) };
+                let remaining = available - taking;
+
+                if remaining > 0 {
+                    // Leave the rest on the floor by mutating the floor stack.
+                    match loc {
+                        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                            if let Some(area) = state.world.get_area_mut(area_ref) {
+                                area.objects[idx].quantity = remaining;
+                            }
+                        }
+                        PlayerLocation::Room { room_id } => {
+                            if let Some(room) = state.world.get_room_mut(room_id) {
+                                room.objects[idx].quantity = remaining;
+                            }
+                        }
+                    }
+                } else {
+                    // Take the whole floor stack.
+                    match loc {
+                        PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                            let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                            if let Some(area) = state.world.get_area_mut(area_ref) {
+                                area.objects.remove(idx);
+                            }
+                        }
+                        PlayerLocation::Room { room_id } => {
+                            if let Some(room) = state.world.get_room_mut(room_id) {
+                                room.objects.remove(idx);
+                            }
+                        }
                     }
                 }
-                PlayerLocation::Room { room_id } => {
-                    if let Some(room) = state.world.get_room_mut(room_id) {
-                        room.objects.remove(idx);
+
+                // Merge into existing inventory stack or push a new one.
+                let template_id = obj.template_id.clone();
+                let player = state.players.get_mut(&client_id).unwrap();
+                if let Some(stack) = player.inventory.iter_mut().find(|o| o.template_id == template_id) {
+                    stack.quantity += taking;
+                } else {
+                    obj.quantity = taking;
+                    player.inventory.push(obj);
+                }
+                if taking == 1 {
+                    format!("You pick up {}.\n", short)
+                } else {
+                    format!("You pick up {} x{}.\n", short, taking)
+                }
+            } else {
+                // Non-stackable: remove whole object, push to inventory.
+                match loc {
+                    PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                        let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                        if let Some(area) = state.world.get_area_mut(area_ref) {
+                            area.objects.remove(idx);
+                        }
+                    }
+                    PlayerLocation::Room { room_id } => {
+                        if let Some(room) = state.world.get_room_mut(room_id) {
+                            room.objects.remove(idx);
+                        }
                     }
                 }
+                if let Some(p) = state.players.get_mut(&client_id) {
+                    p.inventory.push(obj);
+                }
+                format!("You pick up {}.\n", short)
             }
-            if let Some(p) = state.players.get_mut(&client_id) {
-                p.inventory.push(obj);
-            }
-            format!("You pick up {}.\n", short)
         }
     }
 }
 
 fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let (qty_req, name) = parse_qty_target(target);
     let (loc, result) = {
         let player = match state.players.get(&client_id) {
             Some(p) => p,
@@ -462,32 +531,79 @@ fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
         let registry = &state.world.object_registry;
         let result = player.inventory.iter().enumerate().find_map(|(idx, obj)| {
             registry.get(&obj.template_id).and_then(|tmpl| {
-                if tmpl.matches_name(target) { Some((idx, obj.clone(), tmpl.short.clone())) } else { None }
+                if tmpl.matches_name(name) {
+                    Some((idx, obj.clone(), tmpl.short.clone(), tmpl.is_stackable()))
+                } else { None }
             })
         });
         (player.core.location, result)
     };
 
     match result {
-        None => format!("You aren't carrying any '{}'.\n", target),
-        Some((idx, obj, short)) => {
-            if let Some(p) = state.players.get_mut(&client_id) {
-                p.inventory.remove(idx);
-            }
-            match loc {
-                PlayerLocation::Area { zone_q, zone_r, area_id } => {
-                    let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
-                    if let Some(area) = state.world.get_area_mut(area_ref) {
-                        area.objects.push(obj);
+        None => format!("You aren't carrying any '{}'.\n", name),
+        Some((idx, mut obj, short, stackable)) => {
+            if stackable {
+                let held = obj.quantity;
+                let dropping = if qty_req == 0 { held } else { qty_req.min(held) };
+                let remaining = held - dropping;
+
+                if remaining > 0 {
+                    state.players.get_mut(&client_id).unwrap().inventory[idx].quantity = remaining;
+                } else {
+                    state.players.get_mut(&client_id).unwrap().inventory.remove(idx);
+                }
+
+                obj.quantity = dropping;
+                // Merge onto an existing floor stack of the same template.
+                let template_id = obj.template_id.clone();
+                let merged = match loc {
+                    PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                        let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                        if let Some(area) = state.world.get_area_mut(area_ref) {
+                            if let Some(stack) = area.objects.iter_mut().find(|o| o.template_id == template_id) {
+                                stack.quantity += dropping;
+                                true
+                            } else {
+                                area.objects.push(obj);
+                                false
+                            }
+                        } else { false }
+                    }
+                    PlayerLocation::Room { room_id } => {
+                        if let Some(room) = state.world.get_room_mut(room_id) {
+                            if let Some(stack) = room.objects.iter_mut().find(|o| o.template_id == template_id) {
+                                stack.quantity += dropping;
+                                true
+                            } else {
+                                room.objects.push(obj);
+                                false
+                            }
+                        } else { false }
+                    }
+                };
+                let _ = merged;
+                if dropping == 1 {
+                    format!("You drop {}.\n", short)
+                } else {
+                    format!("You drop {} x{}.\n", short, dropping)
+                }
+            } else {
+                state.players.get_mut(&client_id).unwrap().inventory.remove(idx);
+                match loc {
+                    PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                        let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                        if let Some(area) = state.world.get_area_mut(area_ref) {
+                            area.objects.push(obj);
+                        }
+                    }
+                    PlayerLocation::Room { room_id } => {
+                        if let Some(room) = state.world.get_room_mut(room_id) {
+                            room.objects.push(obj);
+                        }
                     }
                 }
-                PlayerLocation::Room { room_id } => {
-                    if let Some(room) = state.world.get_room_mut(room_id) {
-                        room.objects.push(obj);
-                    }
-                }
+                format!("You drop {}.\n", short)
             }
-            format!("You drop {}.\n", short)
         }
     }
 }
@@ -524,7 +640,11 @@ fn cmd_inventory(client_id: u32, state: &GameState) -> String {
     let registry = &state.world.object_registry;
     let mut out = "You are carrying:\n".to_string();
     for obj in &player.inventory {
-        out.push_str(&format!("  {} ({})\n", obj.short(registry), obj.condition.label()));
+        if obj.quantity > 1 {
+            out.push_str(&format!("  {} x{}\n", obj.short(registry), obj.quantity));
+        } else {
+            out.push_str(&format!("  {} ({})\n", obj.short(registry), obj.condition.label()));
+        }
     }
     out
 }
@@ -1110,6 +1230,88 @@ mod tests {
         let mut state = make_state();
         let (out, _) = execute(Command::Read("widget".to_string()), CLIENT, &mut state);
         assert!(out.contains("don't see"), "got: {out}");
+    }
+
+    // --- stacking (get / drop with qty) ---
+
+    fn make_state_with_stackables() -> GameState {
+        let mut state = make_state();
+
+        state.world.object_registry.insert("scrap".to_string(), ObjectTemplate {
+            id: "scrap".to_string(), names: vec!["scrap".to_string(), "scrap metal".to_string()],
+            short: "scrap metal".to_string(), room_look: "Some scrap metal lies here.".to_string(),
+            description: "Salvaged metal fragments.".to_string(), read: None,
+            category: ObjectCategory::Component,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![ObjectFlag::Stackable, ObjectFlag::Salvaged], value: 2,
+            equip_slot: None, health_restore: 0, consume_message: None,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+
+        // Place a floor stack of 5 scraps in area 1 (start area)
+        let mut floor_stack = ObjectInstance::new("scrap");
+        floor_stack.quantity = 5;
+        let start = AreaRef { zone: HexCoord::new(0, 0), area_id: 1 };
+        state.world.get_area_mut(start).unwrap().objects.push(floor_stack);
+
+        state
+    }
+
+    #[test]
+    fn get_stackable_merges_into_inventory() {
+        let mut state = make_state_with_stackables();
+        // Pre-seed inventory with 3 scraps
+        let mut seed = ObjectInstance::new("scrap");
+        seed.quantity = 3;
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(seed);
+
+        let (out, _) = execute(Command::Get("scrap".to_string()), CLIENT, &mut state);
+        assert!(out.contains("scrap"), "got: {out}");
+        let inv = &state.players[&CLIENT].inventory;
+        let stack = inv.iter().find(|o| o.template_id == "scrap").unwrap();
+        assert_eq!(stack.quantity, 8, "3 held + 5 floor = 8");
+    }
+
+    #[test]
+    fn get_partial_quantity_leaves_rest_on_floor() {
+        let mut state = make_state_with_stackables();
+        let (out, _) = execute(Command::Get("2 scrap".to_string()), CLIENT, &mut state);
+        assert!(out.contains("x2"), "got: {out}");
+        assert_eq!(state.players[&CLIENT].inventory.iter().find(|o| o.template_id == "scrap").unwrap().quantity, 2);
+        // Floor stack should have 3 remaining
+        let start = AreaRef { zone: HexCoord::new(0, 0), area_id: 1 };
+        let floor = state.world.get_area(start).unwrap().objects.iter().find(|o| o.template_id == "scrap").unwrap();
+        assert_eq!(floor.quantity, 3);
+    }
+
+    #[test]
+    fn drop_partial_quantity_leaves_rest_in_inventory() {
+        let mut state = make_state_with_stackables();
+        execute(Command::Get("scrap".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Drop("2 scrap".to_string()), CLIENT, &mut state);
+        assert!(out.contains("x2"), "got: {out}");
+        assert_eq!(state.players[&CLIENT].inventory.iter().find(|o| o.template_id == "scrap").unwrap().quantity, 3);
+    }
+
+    #[test]
+    fn drop_stackable_merges_onto_floor_stack() {
+        let mut state = make_state_with_stackables();
+        execute(Command::Get("scrap".to_string()), CLIENT, &mut state);
+        execute(Command::Drop("scrap".to_string()), CLIENT, &mut state);
+        // Original 5 dropped back → floor should have 5, merged
+        let start = AreaRef { zone: HexCoord::new(0, 0), area_id: 1 };
+        let floor_qty: u32 = state.world.get_area(start).unwrap().objects.iter()
+            .filter(|o| o.template_id == "scrap").map(|o| o.quantity).sum();
+        assert_eq!(floor_qty, 5);
+    }
+
+    #[test]
+    fn inventory_shows_quantity_for_stacks() {
+        let mut state = make_state_with_stackables();
+        execute(Command::Get("scrap".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Inventory, CLIENT, &mut state);
+        assert!(out.contains("x5"), "got: {out}");
     }
 
     // --- equip (wield / wear / remove / equipment) ---
