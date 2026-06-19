@@ -63,6 +63,7 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Enter(dir)      => (enter_fixture(dir, client_id, state), true),
         Command::Get(target)     => (cmd_get(&target, client_id, state), true),
         Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
+        Command::Read(target)    => (cmd_read(&target, client_id, state), true),
         Command::Inventory       => (cmd_inventory(client_id, state), true),
         Command::WorldMap        => (state.world.world_map.render(), true),
         Command::Help(topic)     => (help_text(topic.as_deref()), true),
@@ -298,6 +299,46 @@ fn cmd_examine(target: &str, client_id: u32, state: &GameState) -> String {
     }
 
     format!("You don't see any '{}' here.\n", target)
+}
+
+fn cmd_read(target: &str, client_id: u32, state: &GameState) -> String {
+    let loc = match state.players.get(&client_id) {
+        Some(p) => p.core.location,
+        None    => return String::new(),
+    };
+
+    let registry = &state.world.object_registry;
+
+    // Search inventory first, then the current location.
+    let find_in = |objects: &[ObjectInstance]| -> Option<&ObjectTemplate> {
+        objects.iter().find_map(|o| {
+            registry.get(&o.template_id).filter(|t| t.matches_name(target))
+        })
+    };
+
+    let tmpl = state.players.get(&client_id)
+        .and_then(|p| find_in(&p.inventory))
+        .or_else(|| match loc {
+            PlayerLocation::Area { zone_q, zone_r, area_id } => {
+                let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
+                state.world.get_area(area_ref).and_then(|a| find_in(&a.objects))
+            }
+            PlayerLocation::Room { room_id } => {
+                state.world.get_room(room_id).and_then(|r| find_in(&r.objects))
+            }
+        });
+
+    match tmpl {
+        None => format!("You don't see any '{}' here.\n", target),
+        Some(t) => {
+            let is_data = matches!(t.category, ObjectCategory::Data);
+            match &t.read {
+                Some(text) => format!("{}\n", text),
+                None if is_data => format!("{}\n", t.description),
+                None => format!("There's nothing to read on {}.\n", t.short),
+            }
+        }
+    }
 }
 
 fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {

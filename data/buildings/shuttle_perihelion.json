@@ -10,6 +10,7 @@
       "short": "a transit manifest",
       "room_look": "A folded transit manifest lies on the floor.",
       "description": "A printed form from the Perihelion — passenger manifest, cargo declaration, customs disclosure. Your name is in here somewhere, among six hundred and forty. The date at the top predates landing by six months. It already feels like another century.",
+      "read": "PERIHELION TRANSIT AUTHORITY — PASSENGER MANIFEST\nVoyage: PER-2219-09 | Departure: Earth Transit Hub 7 | Arrival: Kepler-442b (Firstfall)\nPassengers: 640 | Cargo tonnage: 2,847 | Transit duration: 6.2 years (shipboard: 4.1 months cryo)\n\nYou find your name in column three, row 28. Occupation listed: [REDACTED BY CORPORATE ORDER 7-7-A]. Declared cargo: personal effects, 18kg. Special notes: none.\n\nBelow the passenger section, in smaller print: 'The Corporate Authority assumes no liability for psychological adjustment difficulties arising from extended transit or planetary acclimation. Colonists are advised to report cognitive anomalies to the Medical Officer within 30 days of arrival. Failure to report may affect employment status.'\n\nSomeone has circled 'cognitive anomalies' in pencil and written next to it: 'they mean the dreams.'",
       "category": "data",
       "weight": "tiny", "bulk": "tiny", "material": "paper",
       "flags": ["EARTH_ORIGIN"],

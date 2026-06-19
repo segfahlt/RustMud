@@ -26,6 +26,7 @@ pub enum Command {
     Enter(Direction),           // enter <dir> — enter a fixture when area exit also exists
     Get(String),                // get <thing>
     Drop(String),               // drop <thing>
+    Read(String),               // read <thing>
     Inventory,                  // inventory | i
     WorldMap,                   // wmap | worldmap
     Help(Option<String>),       // help | help <topic>
@@ -173,12 +174,14 @@ mod tests {
     #[test] fn parse_inventory_alias(){ assert!(matches!(parse("i"),         Ok(Command::Inventory))); }
     #[test] fn parse_inventory_inv()  { assert!(matches!(parse("inv"),       Ok(Command::Inventory))); }
 
-    // --- get / drop ---
+    // --- get / drop / read ---
     #[test] fn parse_get()            { assert!(matches!(parse("get knife"), Ok(Command::Get(_)))); }
     #[test] fn parse_get_take()       { assert!(matches!(parse("take knife"),Ok(Command::Get(_)))); }
     #[test] fn parse_drop()           { assert!(matches!(parse("drop knife"),Ok(Command::Drop(_)))); }
     #[test] fn parse_get_nothing()    { assert!(matches!(parse("get"),       Err(ParseError::MissingTarget(_)))); }
     #[test] fn parse_drop_nothing()   { assert!(matches!(parse("drop"),      Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_read()           { assert!(matches!(parse("read note"),  Ok(Command::Read(_)))); }
+    #[test] fn parse_read_nothing()   { assert!(matches!(parse("read"),       Err(ParseError::MissingTarget(_)))); }
 
     // --- go ---
     #[test] fn parse_go_north()     { assert!(matches!(parse("go north"),     Ok(Command::Go(Direction::North)))); }

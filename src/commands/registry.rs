@@ -77,6 +77,13 @@ impl Registry {
                 parse: parse_drop,
             },
             CommandDef {
+                name: "read", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "read <thing>",
+                description: "Read a note, book, or data item.",
+                parse: parse_read,
+            },
+            CommandDef {
                 name: "inventory", priority: 10, aliases: &["i", "inv"],
                 category: Category::Items,
                 usage: "inventory",
@@ -335,6 +342,13 @@ fn parse_drop(rest: &str) -> Result<Command, ParseError> {
         return Err(ParseError::MissingTarget("Drop what?".to_string()));
     }
     Ok(Command::Drop(rest.to_string()))
+}
+
+fn parse_read(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Read what?".to_string()));
+    }
+    Ok(Command::Read(rest.to_string()))
 }
 
 fn parse_go(rest: &str) -> Result<Command, ParseError> {

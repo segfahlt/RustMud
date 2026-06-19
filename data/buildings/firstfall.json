@@ -32,6 +32,7 @@
       "short": "a dog-eared paperback",
       "room_look": "A dog-eared paperback novel sits on the card table.",
       "description": "A physical book — paper, ink, binding glue. Someone brought this from Earth. It weighs almost nothing and costs a staggering amount in cargo allowance to justify. The spine is cracked at three places. The last fifty pages are unread. The bookmark is a boarding pass from a transit hub that no longer exists.",
+      "read": "You open it to the bookmarked page. The prose is from another century — a murder set in a city that was demolished before you were born. You read a paragraph, then another. The voice is calm and specific, the world it describes completely gone. Halfway down the page someone has written in pencil, small and cramped: 'Chapter 11.' Nothing else. You don't know if it's a recommendation or a warning.",
       "category": "data",
       "weight": "tiny", "bulk": "small", "material": "paper",
       "flags": ["EARTH_ORIGIN"],
