@@ -105,6 +105,7 @@ async fn main() {
     }
 
     let mut state    = GameState::new(world);
+    state.restore_generated_mobs(save.generated_mob_templates.clone());
     let mut sessions: HashMap<u32, SessionState> = HashMap::new();
 
     eprintln!("Game loop started. Connecting to gateway at {SOCKET_PATH}...");
@@ -803,6 +804,8 @@ async fn do_save(
     for (&room_id, room) in state.world.rooms() {
         save.room_objects.insert(room_id, room.objects.clone());
     }
+
+    save.generated_mob_templates = state.generated_mob_templates.clone();
 
     write_world_save(save, Path::new(SAVE_PATH))
         .unwrap_or_else(|e| eprintln!("Save failed: {e}"));

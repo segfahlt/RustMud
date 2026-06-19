@@ -4,20 +4,37 @@ use crate::commands::{help_text, Command, OHelpQuery};
 use crate::world::object::{Bulk, EquipSlot, Material, ObjectCategory, ObjectFlag, ObjectTemplate, Weight};
 use crate::world::AreaRef;
 use crate::mob::{Equipment, MobCore, MonsterInstance, Player};
+use crate::world::MonsterTemplate;
 use crate::persist::CharacterSave;
 use crate::world::{Area, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
 
 pub struct GameState {
     pub world:    World,
-    pub players:  HashMap<u32, Player>,   // client_id → Player
-    pub monsters: HashMap<u32, MonsterInstance>, // mob_id → MonsterInstance
+    pub players:  HashMap<u32, Player>,
+    pub monsters: HashMap<u32, MonsterInstance>,
+    /// Procedurally generated templates — persisted via WorldSave on shutdown.
+    pub generated_mob_templates: HashMap<String, MonsterTemplate>,
 }
 
 impl GameState {
     pub fn new(world: World) -> Self {
-        let mut state = GameState { world, players: HashMap::new(), monsters: HashMap::new() };
+        let mut state = GameState {
+            world,
+            players:  HashMap::new(),
+            monsters: HashMap::new(),
+            generated_mob_templates: HashMap::new(),
+        };
         state.spawn_initial_mobs();
         state
+    }
+
+    /// Load generated templates from save back into the mob registry and
+    /// re-register them in generated_mob_templates for future saves.
+    pub fn restore_generated_mobs(&mut self, templates: HashMap<String, MonsterTemplate>) {
+        for (id, tmpl) in templates {
+            self.world.mob_registry.insert(id.clone(), tmpl.clone());
+            self.generated_mob_templates.insert(id, tmpl);
+        }
     }
 
     fn spawn_initial_mobs(&mut self) {

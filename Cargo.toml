@@ -11,3 +11,4 @@ schemars = "0.8"
 tokio = { version = "1", features = ["full"] }
 argon2 = { version = "0.5", features = ["std"] }
 uuid   = { version = "1",   features = ["v4", "serde"] }
+rand   = "0.8"

@@ -10,7 +10,7 @@ use argon2::{
 use serde::{Deserialize, Serialize};
 
 use crate::mob::Equipment;
-use crate::world::{ObjectInstance, PlayerLocation};
+use crate::world::{MonsterTemplate, ObjectInstance, PlayerLocation};
 
 // --- Permissions ---
 
@@ -95,6 +95,9 @@ pub struct WorldSave {
     /// Objects on Room floors, keyed by room_id.
     #[serde(default)]
     pub room_objects: HashMap<u32, Vec<ObjectInstance>>,
+    /// Procedurally generated mob templates, keyed by template id.
+    #[serde(default)]
+    pub generated_mob_templates: HashMap<String, MonsterTemplate>,
 }
 
 // --- Password hashing (argon2id) ---

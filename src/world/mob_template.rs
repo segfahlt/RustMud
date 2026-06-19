@@ -22,6 +22,24 @@ impl Default for DamageType {
 }
 
 // ---------------------------------------------------------------------------
+// FoodChainTier
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FoodChainTier {
+    Grazer,      // primary consumers, non-aggressive
+    Scavenger,   // opportunistic, non-aggressive unless cornered
+    Predator,    // aggressive hunters
+    Apex,        // top of the food chain, aggressive
+    Coherence,   // field-native, not on the food chain
+}
+
+impl Default for FoodChainTier {
+    fn default() -> Self { FoodChainTier::Grazer }
+}
+
+// ---------------------------------------------------------------------------
 // LootEntry
 // ---------------------------------------------------------------------------
 
@@ -112,6 +130,13 @@ pub struct MonsterTemplate {
     pub chance_of_loot: u8,
     #[serde(default)]
     pub loot_table:     Vec<LootEntry>,
+
+    /// Position in the food chain — drives spawn probability and AI behaviour.
+    #[serde(default)]
+    pub food_chain_tier: FoodChainTier,
+    /// True if this template was procedurally generated at runtime.
+    #[serde(default)]
+    pub generated: bool,
 }
 
 fn default_detection_range() -> u8 { 1 }

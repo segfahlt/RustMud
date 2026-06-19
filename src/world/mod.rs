@@ -14,7 +14,7 @@ pub use area::Area;
 pub use hex::{
     AreaRef, EvolutionStage, ExitDestination, FixtureRef, HexCoord, PlayerLocation,
 };
-pub use mob_template::{CombatStats, DamageType, LootEntry, MobRegistry, MonsterTemplate};
+pub use mob_template::{CombatStats, DamageType, FoodChainTier, LootEntry, MobRegistry, MonsterTemplate};
 pub use object::{FixturePermanence, ObjectInstance, ObjectRegistry, ObjectTemplate};
 pub use room::{Direction, Room};
 pub use worldmap::WorldMap;
