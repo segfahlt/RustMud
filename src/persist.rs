@@ -91,10 +91,10 @@ pub struct WorldSave {
     pub characters: HashMap<String, CharacterSave>,  // character_id → save
     /// Objects on Area floors, keyed by "zone_q:zone_r:area_id".
     #[serde(default)]
-    pub area_objects: HashMap<String, serde_json::Value>,
+    pub area_objects: HashMap<String, Vec<ObjectInstance>>,
     /// Objects on Room floors, keyed by room_id.
     #[serde(default)]
-    pub room_objects: HashMap<u32, serde_json::Value>,
+    pub room_objects: HashMap<u32, Vec<ObjectInstance>>,
 }
 
 // --- Password hashing (argon2id) ---
@@ -157,4 +157,66 @@ pub fn write_world_save(save: &WorldSave, path: &Path) -> io::Result<()> {
         fs::create_dir_all(dir)?;
     }
     fs::write(path, serde_json::to_string_pretty(save)?)
+}
+
+// --- Tests ---
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_obj(template_id: &str) -> ObjectInstance {
+        ObjectInstance::new(template_id)
+    }
+
+    #[test]
+    fn world_save_round_trips_area_objects() {
+        let mut save = WorldSave::default();
+        let key = "0:1:3".to_string();
+        let objs = vec![make_obj("scrap"), make_obj("ration")];
+        save.area_objects.insert(key.clone(), objs.clone());
+
+        let json = serde_json::to_string(&save).unwrap();
+        let restored: WorldSave = serde_json::from_str(&json).unwrap();
+        let restored_objs = restored.area_objects.get(&key).unwrap();
+        assert_eq!(restored_objs.len(), 2);
+        assert_eq!(restored_objs[0].template_id, "scrap");
+        assert_eq!(restored_objs[1].template_id, "ration");
+    }
+
+    #[test]
+    fn world_save_round_trips_room_objects() {
+        let mut save = WorldSave::default();
+        let mut obj = make_obj("knife");
+        obj.quantity = 3;
+        save.room_objects.insert(42, vec![obj]);
+
+        let json = serde_json::to_string(&save).unwrap();
+        let restored: WorldSave = serde_json::from_str(&json).unwrap();
+        let objs = restored.room_objects.get(&42).unwrap();
+        assert_eq!(objs.len(), 1);
+        assert_eq!(objs[0].template_id, "knife");
+        assert_eq!(objs[0].quantity, 3);
+    }
+
+    #[test]
+    fn world_save_preserves_bound_to() {
+        let mut save = WorldSave::default();
+        let mut obj = make_obj("pass");
+        obj.bound_to = Some("alice".to_string());
+        save.room_objects.insert(7, vec![obj]);
+
+        let json = serde_json::to_string(&save).unwrap();
+        let restored: WorldSave = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            restored.room_objects[&7][0].bound_to.as_deref(),
+            Some("alice")
+        );
+    }
+
+    #[test]
+    fn world_save_defaults_to_empty_on_missing_area() {
+        let save = WorldSave::default();
+        assert!(save.area_objects.get("9:9:99").is_none());
+    }
 }

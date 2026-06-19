@@ -81,6 +81,18 @@ impl World {
         coords
     }
 
+    pub fn zones(&self) -> impl Iterator<Item = &Zone> {
+        self.zones.values()
+    }
+
+    pub fn zones_mut(&mut self) -> impl Iterator<Item = &mut Zone> {
+        self.zones.values_mut()
+    }
+
+    pub fn rooms(&self) -> &HashMap<u32, Room> {
+        &self.rooms
+    }
+
     pub fn get_zone_name(&self, coord: HexCoord) -> Option<&str> {
         self.zones.get(&coord).map(|z| z.name.as_str())
     }

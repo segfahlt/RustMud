@@ -44,6 +44,14 @@ impl Zone {
         ids.sort();
         ids
     }
+
+    pub fn areas(&self) -> impl Iterator<Item = &Area> {
+        self.areas.values()
+    }
+
+    pub fn areas_mut(&mut self) -> impl Iterator<Item = &mut Area> {
+        self.areas.values_mut()
+    }
 }
 
 #[cfg(test)]

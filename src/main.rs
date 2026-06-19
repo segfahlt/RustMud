@@ -80,14 +80,32 @@ enum SessionState {
 
 #[tokio::main]
 async fn main() {
-    let world = load_world(Path::new("data")).unwrap_or_else(|e| {
+    let mut world = load_world(Path::new("data")).unwrap_or_else(|e| {
         eprintln!("Error loading world: {e}");
         std::process::exit(1);
     });
 
+    let mut save     = load_world_save(Path::new(SAVE_PATH));
+
+    // Restore floor object state: replace each area/room's objects with the saved snapshot.
+    // Areas and rooms not present in the save keep their JSON-loaded initial state.
+    for zone in world.zones_mut() {
+        let coord = zone.coord;
+        for area in zone.areas_mut() {
+            let key = format!("{}:{}:{}", coord.q, coord.r, area.id);
+            if let Some(objects) = save.area_objects.get(&key) {
+                area.objects = objects.clone();
+            }
+        }
+    }
+    for (&room_id, room) in world.rooms.iter_mut() {
+        if let Some(objects) = save.room_objects.get(&room_id) {
+            room.objects = objects.clone();
+        }
+    }
+
     let mut state    = GameState::new(world);
     let mut sessions: HashMap<u32, SessionState> = HashMap::new();
-    let mut save     = load_world_save(Path::new(SAVE_PATH));
 
     eprintln!("Game loop started. Connecting to gateway at {SOCKET_PATH}...");
 
@@ -635,6 +653,19 @@ async fn do_save(
             }
         }
     }
+
+    // Capture current floor state for all areas and rooms.
+    for zone in state.world.zones() {
+        let coord = zone.coord;
+        for area in zone.areas() {
+            let key = format!("{}:{}:{}", coord.q, coord.r, area.id);
+            save.area_objects.insert(key, area.objects.clone());
+        }
+    }
+    for (&room_id, room) in state.world.rooms() {
+        save.room_objects.insert(room_id, room.objects.clone());
+    }
+
     write_world_save(save, Path::new(SAVE_PATH))
         .unwrap_or_else(|e| eprintln!("Save failed: {e}"));
     flush_room_id_sequence(Path::new("data"), &state.world)
