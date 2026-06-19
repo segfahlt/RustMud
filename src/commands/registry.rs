@@ -271,6 +271,27 @@ impl Registry {
                 },
             },
             CommandDef {
+                name: "mobgen", priority: 10, aliases: &[],
+                category: Category::Admin,
+                usage: "mobgen | mobgen <q> <r> <area_id>",
+                description: "Dry-run mob generation at current or specified area. [Admin|Builder]",
+                parse: |rest| {
+                    if rest.is_empty() {
+                        return Ok(Command::MobGen(None));
+                    }
+                    let parts: Vec<&str> = rest.split_whitespace().collect();
+                    if parts.len() != 3 {
+                        return Err(ParseError::MissingTarget(
+                            "mobgen requires 0 or 3 args: mobgen | mobgen <q> <r> <area_id>".to_string()
+                        ));
+                    }
+                    let q  = parts[0].parse::<i32>().map_err(|_| ParseError::MissingTarget("zone q must be an integer".to_string()))?;
+                    let r  = parts[1].parse::<i32>().map_err(|_| ParseError::MissingTarget("zone r must be an integer".to_string()))?;
+                    let id = parts[2].parse::<u32>().map_err(|_| ParseError::MissingTarget("area_id must be a non-negative integer".to_string()))?;
+                    Ok(Command::MobGen(Some((q, r, id))))
+                },
+            },
+            CommandDef {
                 name: "quit", priority: 10, aliases: &["exit"],
                 category: Category::Info,
                 usage: "quit",

@@ -42,6 +42,7 @@ pub enum Command {
     Help(Option<String>),       // help | help <topic>
     OHelp(OHelpQuery),          // ohelp object reference system
     OFind(String),              // ofind <template_id>  [Admin|Builder]
+    MobGen(Option<(i32, i32, u32)>), // mobgen [<q> <r> <area_id>]  [Admin|Builder]
     Quit,
     Shutdown,                   // kill game + gateway  [Admin]
     Reboot,                     // graceful game restart [Admin|Dev]
@@ -271,6 +272,14 @@ mod tests {
     // --- ofind ---
     #[test] fn parse_ofind_id()     { assert!(matches!(parse("ofind hunting_knife"), Ok(Command::OFind(_)))); }
     #[test] fn parse_ofind_empty()  { assert!(matches!(parse("ofind"),               Err(ParseError::MissingTarget(_)))); }
+
+    // --- mobgen ---
+    #[test] fn parse_mobgen_no_args()   { assert!(matches!(parse("mobgen"),         Ok(Command::MobGen(None)))); }
+    #[test] fn parse_mobgen_with_coords() {
+        assert!(matches!(parse("mobgen 0 0 1"), Ok(Command::MobGen(Some((0, 0, 1))))));
+    }
+    #[test] fn parse_mobgen_bad_coords() { assert!(matches!(parse("mobgen 0 x 1"),  Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_mobgen_wrong_count() { assert!(matches!(parse("mobgen 0 1"),   Err(ParseError::MissingTarget(_)))); }
 
     // --- help ---
     #[test] fn parse_help()       { assert!(matches!(parse("help"),      Ok(Command::Help(None)))); }

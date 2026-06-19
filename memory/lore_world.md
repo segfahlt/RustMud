@@ -41,13 +41,22 @@ The colony ship. Currently **in orbit**, inaccessible. A skeleton crew was left 
 
 **Future content:** accessing the Perihelion is a major quest arc. What Corporate's original briefing actually said is a significant lore reveal.
 
+## Comm Implants
+
+All colonists who arrived on the *Perihelion* carry **subdermal comm implants** — standard Earth corporate issue, surgically installed before departure. These provide:
+
+- **`tell` (peer-to-peer mesh)** — direct implant-to-implant. Works anywhere on the planet, does not require infrastructure. Private, low-bandwidth, text/audio. No PERI involvement.
+- **`say`, `whisper`, `shout`** — local channels, no implant routing. Just voice. Locality-dependent.
+
 ## PERI Game Systems
 
-The Perihelion's systems provide three in-game services:
+The Perihelion's systems provide three in-game services via a **satellite uplink antenna in Firstfall**:
 
-- **`comm`** — colony-wide communications channel relayed through PERI. Corporate frequencies exist separately. PERI announces incoming ships.
-- **`kb` / `lore`** — Perihelion mission archive. Pre-loaded with Earth/Corporate knowledge. Players can upload discoveries (alien organisms, ruin findings, coherence data) to improve it.
+- **`comm`** — colony-wide channel relayed through PERI. Range-limited by distance from the Firstfall uplink. Players too far from Firstfall lose `comm` access unless a **relay tower** is built and powered between them and Firstfall. Corporate frequencies exist separately. PERI announces incoming ships.
+- **`kb` / `lore`** — Perihelion mission archive. Pre-loaded with Earth/Corporate knowledge. Players can upload discoveries (alien organisms, ruin findings, coherence data) to improve it. Also range-gated by uplink/relay infrastructure.
 - **`wmap`** — orbital sensor map, already implemented. Lo-res due to coherence interference; high-coherence zones appear degraded. Players who've explored areas can upload ground-truth data to sharpen the map. **Why:** canonical explanation for existing wmap command.
+
+**Relay towers** are player-built structures that extend the uplink range. They require a power source to operate. This makes `comm`/PERI access a meaningful infrastructure investment as players push out from Firstfall. See [[design-power]] for power generation design.
 
 ## The Crew Logs
 

@@ -180,7 +180,7 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Quit            => ("Farewell.\n".to_string(), false),
         // Admin commands are intercepted in the connection layer before reaching here.
         Command::Shutdown | Command::Reboot | Command::RebootRefresh | Command::Teleport(_)
-        | Command::OFind(_) =>
+        | Command::OFind(_) | Command::MobGen(_) =>
             ("(admin command reached execute — this is a bug)\n".to_string(), true),
     }
 }

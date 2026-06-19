@@ -14,6 +14,7 @@ use rustmud::persist::{
 };
 use rustmud::proto::{GameMsg, GatewayMsg};
 use rustmud::world::loader::{flush_room_id_sequence, load_world};
+use rustmud::world::mob_gen;
 use rustmud::world::{AreaRef, HexCoord, PlayerLocation, World};
 
 const SOCKET_PATH:  &str = "/tmp/rustmud.sock";
@@ -518,6 +519,16 @@ async fn on_command(
                 format!("{output}\n{{c}}>{{/}} ")
             }
         }
+        Ok(Command::MobGen(coords)) => {
+            if !has_perm(&permissions, Permission::Admin)
+                && !has_perm(&permissions, Permission::Builder)
+            {
+                "Permission denied.\n\n{c}>{/} ".to_string()
+            } else {
+                let output = cmd_mobgen(coords, client_id, state);
+                format!("{output}\n{{c}}>{{/}} ")
+            }
+        }
         Ok(Command::Quit) => {
             let (output, _) = execute(Command::Quit, client_id, state);
             send(writer, GatewayMsg::Output { client_id, text: output }).await;
@@ -761,6 +772,86 @@ fn capitalize(s: &str) -> String {
         None    => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
+}
+
+fn cmd_mobgen(coords: Option<(i32, i32, u32)>, client_id: u32, state: &GameState) -> String {
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    let area_ref = match coords {
+        Some((q, r, area_id)) => AreaRef { zone: HexCoord::new(q, r), area_id },
+        None => {
+            let loc = match state.players.get(&client_id) {
+                Some(p) => p.core.location,
+                None    => return "You are not in the world.\n".to_string(),
+            };
+            match loc.as_area_ref() {
+                Some(r) => r,
+                None    => return "mobgen only works in an outdoor area (not inside a room).\n".to_string(),
+            }
+        }
+    };
+
+    let zone = match state.world.get_zone(area_ref.zone) {
+        Some(z) => z,
+        None    => return format!("No zone at ({}, {}).\n", area_ref.zone.q, area_ref.zone.r),
+    };
+    let area = match zone.get_area(area_ref.area_id) {
+        Some(a) => a,
+        None    => return format!("No area {} in zone ({}, {}).\n", area_ref.area_id, area_ref.zone.q, area_ref.zone.r),
+    };
+
+    let ctx   = mob_gen::build_context(zone, area, &state.world.mob_registry, &state.monsters);
+    let mut rng = StdRng::from_entropy();
+
+    // Show the formula chance even though we always generate.
+    let density   = 1.0f32 - (ctx.existing_count as f32 / 5.0);
+    let coherence = ctx.coherence as f32 / 100.0;
+    let visit     = 1.0f32 / (ctx.visit_count as f32).sqrt().max(1.0);
+    let chance    = 0.50 * density * coherence * visit;
+
+    let tmpl = mob_gen::generate(&ctx, &mut rng);
+    let id   = mob_gen::unique_id(&tmpl.id, &state.world.mob_registry);
+
+    let mut out = String::new();
+    out.push_str(&format!("=== MOBGEN DRY RUN — {} [area {}] ===\n", area.name, area_ref.area_id));
+    out.push_str(&format!("Formula chance: {:.1}%  |  Coherence: {}  |  Visits: {}  |  Existing types: {}\n\n",
+        chance * 100.0, ctx.coherence, ctx.visit_count, ctx.existing_count));
+    out.push_str(&format!("ID:           {id}\n"));
+    out.push_str(&format!("Tier:         {:?}\n", tmpl.food_chain_tier));
+    out.push_str(&format!("Names:        {}\n", tmpl.names.join(", ")));
+    out.push_str(&format!("Short:        {}\n", tmpl.short));
+    out.push_str(&format!("Room look:    {}\n", tmpl.room_look));
+    out.push_str(&format!("Description:  {}\n\n", tmpl.description));
+    out.push_str(&format!("Health:       {} – {}\n", tmpl.health_min, tmpl.health_max));
+    out.push_str(&format!("Attack:       {}  Defense: {}\n", tmpl.combat.attack, tmpl.combat.defense));
+    out.push_str(&format!("Damage:       {} – {}  ({:?})\n", tmpl.combat.damage_min, tmpl.combat.damage_max, tmpl.combat.attack_type));
+    out.push_str(&format!("XP value:     {}\n", tmpl.combat.xp_value));
+    if !tmpl.combat.resistances.is_empty() {
+        out.push_str(&format!("Resists:      {:?}\n", tmpl.combat.resistances));
+    }
+    if !tmpl.combat.immunities.is_empty() {
+        out.push_str(&format!("Immune:       {:?}\n", tmpl.combat.immunities));
+    }
+    out.push('\n');
+    let flags: Vec<&str> = [
+        tmpl.stationary.then_some("stationary"),
+        tmpl.wanders.then_some("wanders"),
+        tmpl.aggressive.then_some("aggressive"),
+        tmpl.follows_aggressive.then_some("follows-aggressive"),
+        tmpl.calls_for_help.then_some("calls-for-help"),
+    ].into_iter().flatten().collect();
+    out.push_str(&format!("Flags:        {}\n", if flags.is_empty() { "none".to_string() } else { flags.join(", ") }));
+    out.push_str(&format!("Detect range: {}  Flee at: {}%  Respawn: {}s\n\n",
+        tmpl.detection_range, tmpl.flee_threshold, tmpl.respawn_secs));
+    out.push_str(&format!("Loot chance:  {}%\n", tmpl.chance_of_loot));
+    out.push_str("Loot table:\n");
+    for entry in &tmpl.loot_table {
+        out.push_str(&format!("  {:30} {:3}%  qty {}-{}\n",
+            entry.template_id, entry.chance, entry.qty_min, entry.qty_max));
+    }
+    out.push_str("\n(DRY RUN — nothing was added to the world)\n");
+    out
 }
 
 // ---------------------------------------------------------------------------
