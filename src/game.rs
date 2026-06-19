@@ -438,13 +438,22 @@ fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
     };
 
     // Fixture-category objects are fixed in place and cannot be picked up.
+    // Bonded items bound to another character cannot be picked up.
     if let Some((_, ref obj, _, _)) = result {
         if let Some(tmpl) = state.world.object_registry.get(&obj.template_id) {
             if tmpl.category.is_fixture() {
                 return "You can't pick that up.\n".to_string();
             }
         }
+        if let Some(ref owner) = obj.bound_to {
+            let char_id = state.players.get(&client_id).map(|p| p.character_id.as_str()).unwrap_or("");
+            if owner != char_id {
+                return format!("That item belongs to someone else.\n");
+            }
+        }
     }
+
+    let char_id = state.players.get(&client_id).map(|p| p.character_id.clone()).unwrap_or_default();
 
     match result {
         None => format!("You don't see any '{}' here.\n", name),
@@ -515,6 +524,14 @@ fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
                         }
                     }
                 }
+                // Bind on first pickup for Bonded items.
+                if obj.bound_to.is_none() {
+                    if let Some(tmpl) = state.world.object_registry.get(&obj.template_id) {
+                        if tmpl.is_bonded_flag() {
+                            obj.bound_to = Some(char_id);
+                        }
+                    }
+                }
                 if let Some(p) = state.players.get_mut(&client_id) {
                     p.inventory.push(obj);
                 }
@@ -545,6 +562,12 @@ fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
     match result {
         None => format!("You aren't carrying any '{}'.\n", name),
         Some((idx, mut obj, short, stackable)) => {
+            // NoDrop / Quest / Bonded items cannot be dropped.
+            if let Some(tmpl) = state.world.object_registry.get(&obj.template_id) {
+                if tmpl.is_no_drop() || tmpl.is_bonded_flag() {
+                    return format!("You can't drop {}.\n", short);
+                }
+            }
             if stackable {
                 let held = obj.quantity;
                 let dropping = if qty_req == 0 { held } else { qty_req.min(held) };
@@ -692,9 +715,19 @@ fn cmd_get_from(item: &str, container: &str, client_id: u32, state: &mut GameSta
         Some(i) => i,
     };
 
-    let item_obj = state.players.get_mut(&client_id).unwrap()
+    let mut item_obj = state.players.get_mut(&client_id).unwrap()
         .inventory[con_idx].contents.remove(item_idx);
     let item_short = item_obj.short(&state.world.object_registry).to_string();
+
+    // Bind on first extraction for Bonded items.
+    if item_obj.bound_to.is_none() {
+        if let Some(tmpl) = state.world.object_registry.get(&item_obj.template_id) {
+            if tmpl.is_bonded_flag() {
+                let char_id = state.players.get(&client_id).map(|p| p.character_id.clone());
+                item_obj.bound_to = char_id;
+            }
+        }
+    }
 
     state.players.get_mut(&client_id).unwrap().inventory.push(item_obj);
     format!("You take {} from {}.\n", item_short, con_tmpl.short)
@@ -770,10 +803,19 @@ fn cmd_inventory(client_id: u32, state: &GameState) -> String {
     let registry = &state.world.object_registry;
     let mut out = "You are carrying:\n".to_string();
     for obj in &player.inventory {
-        if obj.quantity > 1 {
-            out.push_str(&format!("  {} x{}\n", obj.short(registry), obj.quantity));
+        let name = obj.short(registry);
+        let tmpl = registry.get(&obj.template_id);
+        let tag = if tmpl.map(|t| matches!(t.category, ObjectCategory::Quest)).unwrap_or(false) {
+            " {Y}[quest]{/}"
+        } else if obj.bound_to.is_some() {
+            " {C}[bound]{/}"
         } else {
-            out.push_str(&format!("  {} ({})\n", obj.short(registry), obj.condition.label()));
+            ""
+        };
+        if obj.quantity > 1 {
+            out.push_str(&format!("  {} x{}{}\n", name, obj.quantity, tag));
+        } else {
+            out.push_str(&format!("  {} ({}){}\n", name, obj.condition.label(), tag));
         }
     }
     out
@@ -1361,6 +1403,116 @@ mod tests {
         let mut state = make_state();
         let (out, _) = execute(Command::Read("widget".to_string()), CLIENT, &mut state);
         assert!(out.contains("don't see"), "got: {out}");
+    }
+
+    // --- behavior gates (quest / bonded / no_drop) ---
+
+    fn make_state_with_gated_items() -> GameState {
+        let mut state = make_state();
+        let registry = &mut state.world.object_registry;
+
+        registry.insert("relic".to_string(), ObjectTemplate {
+            id: "relic".to_string(), names: vec!["relic".to_string()],
+            short: "an alien relic".to_string(), room_look: "An alien relic rests here.".to_string(),
+            description: "A pulsing fragment of alien origin.".to_string(), read: None,
+            category: ObjectCategory::Quest,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 0,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        registry.insert("pass".to_string(), ObjectTemplate {
+            id: "pass".to_string(), names: vec!["pass".to_string(), "access pass".to_string()],
+            short: "an access pass".to_string(), room_look: "An access pass sits here.".to_string(),
+            description: "A Corporate access pass, biometrically encoded.".to_string(), read: None,
+            category: ObjectCategory::Bonded,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![ObjectFlag::Bonded], value: 50,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        registry.insert("nodrop_key".to_string(), ObjectTemplate {
+            id: "nodrop_key".to_string(), names: vec!["key".to_string()],
+            short: "a key".to_string(), room_look: "A key rests here.".to_string(),
+            description: "A key.".to_string(), read: None,
+            category: ObjectCategory::Tool,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![ObjectFlag::NoDrop], value: 0,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+
+        // Seed a relic and a pass on the floor of start area, a key in inventory.
+        let start = AreaRef { zone: HexCoord::new(0, 0), area_id: 1 };
+        state.world.get_area_mut(start).unwrap().objects.push(ObjectInstance::new("relic"));
+        state.world.get_area_mut(start).unwrap().objects.push(ObjectInstance::new("pass"));
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("nodrop_key"));
+        state
+    }
+
+    #[test]
+    fn quest_item_cannot_be_dropped() {
+        let mut state = make_state_with_gated_items();
+        execute(Command::Get("relic".to_string()), CLIENT, &mut state);
+        assert!(state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "relic"));
+        let (out, _) = execute(Command::Drop("relic".to_string()), CLIENT, &mut state);
+        assert!(out.contains("can't drop"), "got: {out}");
+        assert!(state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "relic"));
+    }
+
+    #[test]
+    fn nodrop_item_cannot_be_dropped() {
+        let mut state = make_state_with_gated_items();
+        let (out, _) = execute(Command::Drop("key".to_string()), CLIENT, &mut state);
+        assert!(out.contains("can't drop"), "got: {out}");
+    }
+
+    #[test]
+    fn bonded_item_binds_to_picker() {
+        let mut state = make_state_with_gated_items();
+        execute(Command::Get("pass".to_string()), CLIENT, &mut state);
+        let pass = state.players[&CLIENT].inventory.iter().find(|o| o.template_id == "pass").unwrap();
+        assert_eq!(pass.bound_to.as_deref(), Some("tester"));
+    }
+
+    #[test]
+    fn bonded_item_cannot_be_dropped() {
+        let mut state = make_state_with_gated_items();
+        execute(Command::Get("pass".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Drop("pass".to_string()), CLIENT, &mut state);
+        assert!(out.contains("can't drop"), "got: {out}");
+    }
+
+    #[test]
+    fn bonded_item_cannot_be_picked_up_by_another() {
+        let mut state = make_state_with_gated_items();
+        // Pre-bind the pass to a different character.
+        let start = AreaRef { zone: HexCoord::new(0, 0), area_id: 1 };
+        let pass = state.world.get_area_mut(start).unwrap()
+            .objects.iter_mut().find(|o| o.template_id == "pass").unwrap();
+        pass.bound_to = Some("alice".to_string());
+
+        let (out, _) = execute(Command::Get("pass".to_string()), CLIENT, &mut state);
+        assert!(out.contains("belongs to someone else"), "got: {out}");
+    }
+
+    #[test]
+    fn quest_items_show_tag_in_inventory() {
+        let mut state = make_state_with_gated_items();
+        execute(Command::Get("relic".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Inventory, CLIENT, &mut state);
+        assert!(out.contains("[quest]"), "got: {out}");
+    }
+
+    #[test]
+    fn bonded_items_show_tag_in_inventory() {
+        let mut state = make_state_with_gated_items();
+        execute(Command::Get("pass".to_string()), CLIENT, &mut state);
+        let (out, _) = execute(Command::Inventory, CLIENT, &mut state);
+        assert!(out.contains("[bound]"), "got: {out}");
     }
 
     // --- container (put in / get from / look in) ---

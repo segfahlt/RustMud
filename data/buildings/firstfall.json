@@ -190,6 +190,28 @@
       "flags": ["CORPORATE_ISSUE", "SALVAGED"],
       "capacity": 6,
       "value": 40
+    },
+    {
+      "id": "perihelion_fragment",
+      "names": ["fragment", "perihelion fragment", "piece"],
+      "short": "a Perihelion fragment",
+      "room_look": "A fragment of the Perihelion's hull rests here, strangely warm.",
+      "description": "A piece of the Perihelion's forward hull plating, warped and partially fused with something that shouldn't be there — an alien lattice grown into the metal from the inside. It shouldn't be warm. It is. Someone will want to know about this.",
+      "category": "quest",
+      "weight": "light", "bulk": "small", "material": "metal",
+      "flags": ["NO_DROP"],
+      "value": 0
+    },
+    {
+      "id": "corporate_access_pass",
+      "names": ["pass", "access pass", "corporate pass"],
+      "short": "a Corporate access pass",
+      "room_look": "A Corporate access pass rests here.",
+      "description": "Biometrically encoded polymer card, Corporate Security issue. The holographic seal is intact. Once you touch it — according to the fine print that nobody reads — the biometric lock activates and the card becomes yours. Or you become its. The phrasing is intentional.",
+      "category": "bonded",
+      "weight": "tiny", "bulk": "tiny", "material": "composite",
+      "flags": ["BONDED", "CORPORATE_ISSUE", "NO_DROP"],
+      "value": 200
     }
   ],
   "rooms": [

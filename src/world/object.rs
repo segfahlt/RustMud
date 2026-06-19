@@ -306,6 +306,16 @@ impl ObjectTemplate {
     pub fn is_container(&self) -> bool {
         self.capacity > 0
     }
+
+    pub fn is_no_drop(&self) -> bool {
+        self.flags.contains(&ObjectFlag::NoDrop)
+            || matches!(self.category, ObjectCategory::Quest)
+    }
+
+    pub fn is_bonded_flag(&self) -> bool {
+        self.flags.contains(&ObjectFlag::Bonded)
+            || matches!(self.category, ObjectCategory::Bonded)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +342,9 @@ pub struct ObjectInstance {
     /// Items stored inside this container. Empty for non-containers.
     #[serde(default)]
     pub contents:    Vec<ObjectInstance>,
+    /// Set when a Bonded item is first picked up. Only this character_id may use or carry it.
+    #[serde(default)]
+    pub bound_to:    Option<String>,
 }
 
 fn default_quantity() -> u32 { 1 }
@@ -347,6 +360,7 @@ impl ObjectInstance {
             state:       None,
             quantity:    1,
             contents:    vec![],
+            bound_to:    None,
         }
     }
 
