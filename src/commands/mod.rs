@@ -30,6 +30,9 @@ pub enum Command {
     Eat(String),                // eat <food>
     Drink(String),              // drink <liquid>
     UseItem(String),            // use <item>   — generic consume trigger
+    PutIn { item: String, container: String },     // put <item> in <container>
+    GetFrom { item: String, container: String },   // get <item> from <container>
+    LookIn(String),             // look in <container>
     Wield(String),              // wield <weapon>
     Wear(String),               // wear <armor>
     Remove(String),             // remove <item>  — unequip
@@ -189,6 +192,10 @@ mod tests {
     #[test] fn parse_drop_nothing()   { assert!(matches!(parse("drop"),      Err(ParseError::MissingTarget(_)))); }
     #[test] fn parse_read()           { assert!(matches!(parse("read note"),   Ok(Command::Read(_)))); }
     #[test] fn parse_read_nothing()   { assert!(matches!(parse("read"),        Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_put_in()         { assert!(matches!(parse("put knife in bag"), Ok(Command::PutIn { .. }))); }
+    #[test] fn parse_put_in_nothing() { assert!(matches!(parse("put knife"),        Err(ParseError::MissingTarget(_)))); }
+    #[test] fn parse_get_from()       { assert!(matches!(parse("get knife from bag"), Ok(Command::GetFrom { .. }))); }
+    #[test] fn parse_look_in()        { assert!(matches!(parse("look in bag"),    Ok(Command::LookIn(_)))); }
     #[test] fn parse_eat()            { assert!(matches!(parse("eat ration"),  Ok(Command::Eat(_)))); }
     #[test] fn parse_eat_nothing()    { assert!(matches!(parse("eat"),         Err(ParseError::MissingTarget(_)))); }
     #[test] fn parse_drink()          { assert!(matches!(parse("drink water"), Ok(Command::Drink(_)))); }

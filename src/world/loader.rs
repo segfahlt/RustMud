@@ -70,6 +70,7 @@ impl FixtureFile {
             equip_slot:      None,
             health_restore:  0,
             consume_message: None,
+            capacity:        0,
             state_lines:      self.state_lines,
             permanence:       Some(self.permanence),
             minimum_stage:    self.minimum_stage,

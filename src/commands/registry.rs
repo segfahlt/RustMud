@@ -105,6 +105,20 @@ impl Registry {
                 parse: parse_use_item,
             },
             CommandDef {
+                name: "put", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "put <item> in <container>",
+                description: "Put an item into a container.",
+                parse: parse_put_in,
+            },
+            CommandDef {
+                name: "getfrom", priority: 99, aliases: &[],
+                category: Category::Items,
+                usage: "get <item> from <container>",
+                description: "Take an item from a container.",
+                parse: parse_get_from,
+            },
+            CommandDef {
                 name: "wield", priority: 15, aliases: &[],
                 category: Category::Items,
                 usage: "wield <weapon>",
@@ -360,6 +374,13 @@ fn parse_look(rest: &str) -> Result<Command, ParseError> {
     if rest.is_empty() {
         return Ok(Command::Look(None));
     }
+    // `look in <container>`
+    if let Some(container) = rest.strip_prefix("in ") {
+        let container = container.trim();
+        if !container.is_empty() {
+            return Ok(Command::LookIn(container.to_string()));
+        }
+    }
     // Strip optional "at " prefix: `look at forge` → examine "forge"
     let target = rest.strip_prefix("at ").unwrap_or(rest).trim();
     if target.is_empty() {
@@ -382,6 +403,14 @@ fn parse_examine(rest: &str) -> Result<Command, ParseError> {
 fn parse_get(rest: &str) -> Result<Command, ParseError> {
     if rest.is_empty() {
         return Err(ParseError::MissingTarget("Get what?".to_string()));
+    }
+    // `get <item> from <container>` — split on last " from "
+    if let Some(pos) = rest.rfind(" from ") {
+        let item = rest[..pos].trim().to_string();
+        let container = rest[pos + 6..].trim().to_string();
+        if !item.is_empty() && !container.is_empty() {
+            return Ok(Command::GetFrom { item, container });
+        }
     }
     Ok(Command::Get(rest.to_string()))
 }
@@ -419,6 +448,34 @@ fn parse_use_item(rest: &str) -> Result<Command, ParseError> {
         return Err(ParseError::MissingTarget("Use what?".to_string()));
     }
     Ok(Command::UseItem(rest.to_string()))
+}
+
+fn parse_put_in(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Put what where? Usage: put <item> in <container>".to_string()));
+    }
+    if let Some(pos) = rest.find(" in ") {
+        let item = rest[..pos].trim().to_string();
+        let container = rest[pos + 4..].trim().to_string();
+        if !item.is_empty() && !container.is_empty() {
+            return Ok(Command::PutIn { item, container });
+        }
+    }
+    Err(ParseError::MissingTarget("Put what where? Usage: put <item> in <container>".to_string()))
+}
+
+fn parse_get_from(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Get what from where? Usage: get <item> from <container>".to_string()));
+    }
+    if let Some(pos) = rest.find(" from ") {
+        let item = rest[..pos].trim().to_string();
+        let container = rest[pos + 6..].trim().to_string();
+        if !item.is_empty() && !container.is_empty() {
+            return Ok(Command::GetFrom { item, container });
+        }
+    }
+    Err(ParseError::MissingTarget("Get what from where? Usage: get <item> from <container>".to_string()))
 }
 
 fn parse_wield(rest: &str) -> Result<Command, ParseError> {

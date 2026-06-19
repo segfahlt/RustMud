@@ -166,6 +166,30 @@
       "weight": "tiny", "bulk": "tiny", "material": "composite",
       "flags": ["STACKABLE"],
       "value": 1
+    },
+    {
+      "id": "canvas_satchel",
+      "names": ["satchel", "canvas satchel", "bag"],
+      "short": "a canvas satchel",
+      "room_look": "A canvas satchel rests here.",
+      "description": "Heavy-duty canvas, hand-stitched, settler-made. Three external pockets, one interior main compartment, shoulder strap worn but intact. Somebody carried this for a long time. The buckle clasp is still solid.",
+      "category": "container",
+      "weight": "light", "bulk": "medium", "material": "fabric",
+      "flags": ["SETTLER_MADE"],
+      "capacity": 10,
+      "value": 25
+    },
+    {
+      "id": "tool_case",
+      "names": ["case", "tool case", "toolbox"],
+      "short": "a tool case",
+      "room_look": "A hard-sided tool case rests on the workbench.",
+      "description": "Composite shell, foam-lined interior, latches intact. The Corporate Logistics stamp on the lid has been half-scraped off. Whatever tools it came with are gone. The case itself is structurally sound — useful for keeping things from getting damaged.",
+      "category": "container",
+      "weight": "medium", "bulk": "medium", "material": "composite",
+      "flags": ["CORPORATE_ISSUE", "SALVAGED"],
+      "capacity": 6,
+      "value": 40
     }
   ],
   "rooms": [

@@ -286,6 +286,12 @@ pub struct ObjectTemplate {
     /// Message shown to the player on consume. Defaults to a generic "You consume <short>."
     #[serde(default)]
     pub consume_message: Option<String>,
+
+    // --- Container fields ---
+
+    /// Maximum number of items this container can hold. 0 means it is not a container.
+    #[serde(default)]
+    pub capacity: u32,
 }
 
 impl ObjectTemplate {
@@ -295,6 +301,10 @@ impl ObjectTemplate {
 
     pub fn is_stackable(&self) -> bool {
         self.flags.contains(&ObjectFlag::Stackable)
+    }
+
+    pub fn is_container(&self) -> bool {
+        self.capacity > 0
     }
 }
 
@@ -319,6 +329,9 @@ pub struct ObjectInstance {
     /// Stack size. Always 1 for non-stackable items. Stackable items merge on pickup.
     #[serde(default = "default_quantity")]
     pub quantity:    u32,
+    /// Items stored inside this container. Empty for non-containers.
+    #[serde(default)]
+    pub contents:    Vec<ObjectInstance>,
 }
 
 fn default_quantity() -> u32 { 1 }
@@ -333,6 +346,7 @@ impl ObjectInstance {
             custom_desc: None,
             state:       None,
             quantity:    1,
+            contents:    vec![],
         }
     }
 

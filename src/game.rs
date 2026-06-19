@@ -64,6 +64,9 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Enter(dir)      => (enter_fixture(dir, client_id, state), true),
         Command::Get(target)     => (cmd_get(&target, client_id, state), true),
         Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
+        Command::PutIn { item, container }    => (cmd_put_in(&item, &container, client_id, state), true),
+        Command::GetFrom { item, container }  => (cmd_get_from(&item, &container, client_id, state), true),
+        Command::LookIn(container)            => (cmd_look_in(&container, client_id, state), true),
         Command::Read(target)    => (cmd_read(&target, client_id, state), true),
         Command::Eat(target)     => (cmd_consume(&target, client_id, state), true),
         Command::Drink(target)   => (cmd_consume(&target, client_id, state), true),
@@ -608,6 +611,133 @@ fn cmd_drop(target: &str, client_id: u32, state: &mut GameState) -> String {
     }
 }
 
+fn cmd_put_in(item: &str, container: &str, client_id: u32, state: &mut GameState) -> String {
+    // Find the container in inventory.
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let con_idx = player.inventory.iter().position(|obj| {
+        registry.get(&obj.template_id).map(|t| t.matches_name(container)).unwrap_or(false)
+    });
+    let con_idx = match con_idx {
+        None => return format!("You aren't carrying any '{}'.\n", container),
+        Some(i) => i,
+    };
+
+    let con_tmpl = match registry.get(&player.inventory[con_idx].template_id) {
+        None => return format!("You aren't carrying any '{}'.\n", container),
+        Some(t) => t.clone(),
+    };
+    if !con_tmpl.is_container() {
+        return format!("{} isn't a container.\n", con_tmpl.short);
+    }
+
+    let item_idx = player.inventory.iter().enumerate().position(|(idx, obj)| {
+        idx != con_idx
+            && registry.get(&obj.template_id).map(|t| t.matches_name(item)).unwrap_or(false)
+    });
+    let item_idx = match item_idx {
+        None => return format!("You aren't carrying any '{}'.\n", item),
+        Some(i) => i,
+    };
+
+    let capacity = con_tmpl.capacity as usize;
+    let current_count = player.inventory[con_idx].contents.len();
+    if current_count >= capacity {
+        return format!("{} is full.\n", con_tmpl.short);
+    }
+
+    let item_obj = state.players.get_mut(&client_id).unwrap().inventory.remove(item_idx);
+    let item_short = item_obj.short(&state.world.object_registry).to_string();
+    let con_short  = con_tmpl.short.clone();
+
+    // Adjust container index after removing the item (if item came before container).
+    let con_idx_adj = if item_idx < con_idx { con_idx - 1 } else { con_idx };
+    state.players.get_mut(&client_id).unwrap().inventory[con_idx_adj].contents.push(item_obj);
+
+    format!("You put {} in {}.\n", item_short, con_short)
+}
+
+fn cmd_get_from(item: &str, container: &str, client_id: u32, state: &mut GameState) -> String {
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let con_idx = player.inventory.iter().position(|obj| {
+        registry.get(&obj.template_id).map(|t| t.matches_name(container)).unwrap_or(false)
+    });
+    let con_idx = match con_idx {
+        None => return format!("You aren't carrying any '{}'.\n", container),
+        Some(i) => i,
+    };
+
+    let con_tmpl = match registry.get(&player.inventory[con_idx].template_id) {
+        None => return format!("You aren't carrying any '{}'.\n", container),
+        Some(t) => t.clone(),
+    };
+    if !con_tmpl.is_container() {
+        return format!("{} isn't a container.\n", con_tmpl.short);
+    }
+
+    let item_idx = player.inventory[con_idx].contents.iter().position(|obj| {
+        registry.get(&obj.template_id).map(|t| t.matches_name(item)).unwrap_or(false)
+    });
+    let item_idx = match item_idx {
+        None => return format!("There's no '{}' in {}.\n", item, con_tmpl.short),
+        Some(i) => i,
+    };
+
+    let item_obj = state.players.get_mut(&client_id).unwrap()
+        .inventory[con_idx].contents.remove(item_idx);
+    let item_short = item_obj.short(&state.world.object_registry).to_string();
+
+    state.players.get_mut(&client_id).unwrap().inventory.push(item_obj);
+    format!("You take {} from {}.\n", item_short, con_tmpl.short)
+}
+
+fn cmd_look_in(container: &str, client_id: u32, state: &GameState) -> String {
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let con = player.inventory.iter().find(|obj| {
+        registry.get(&obj.template_id).map(|t| t.matches_name(container)).unwrap_or(false)
+    });
+    let con = match con {
+        None => return format!("You aren't carrying any '{}'.\n", container),
+        Some(c) => c,
+    };
+
+    let con_tmpl = match registry.get(&con.template_id) {
+        None => return format!("You aren't carrying any '{}'.\n", container),
+        Some(t) => t,
+    };
+    if !con_tmpl.is_container() {
+        return format!("{} isn't a container.\n", con_tmpl.short);
+    }
+
+    if con.contents.is_empty() {
+        return format!("{} is empty.\n", con_tmpl.short);
+    }
+
+    let mut out = format!("Inside {}:\n", con_tmpl.short);
+    for obj in &con.contents {
+        if obj.quantity > 1 {
+            out.push_str(&format!("  {} x{}\n", obj.short(registry), obj.quantity));
+        } else {
+            out.push_str(&format!("  {}\n", obj.short(registry)));
+        }
+    }
+    out
+}
+
 pub fn teleport(loc: PlayerLocation, client_id: u32, state: &mut GameState) -> String {
     let exists = match loc {
         PlayerLocation::Room { room_id } =>
@@ -997,6 +1127,7 @@ mod tests {
             equip_slot:       None,
             health_restore:   0,
             consume_message:  None,
+            capacity:         0,
             state_lines:      None,
             permanence:       None,
             minimum_stage:    None,
@@ -1160,7 +1291,7 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            equip_slot: None, health_restore: 0, consume_message: None,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             coherence_driven: false, persist_state: false,
         });
 
@@ -1177,7 +1308,7 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            equip_slot: None, health_restore: 0, consume_message: None,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             coherence_driven: false, persist_state: false,
         });
 
@@ -1194,7 +1325,7 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            equip_slot: None, health_restore: 0, consume_message: None,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             coherence_driven: false, persist_state: false,
         });
 
@@ -1232,6 +1363,107 @@ mod tests {
         assert!(out.contains("don't see"), "got: {out}");
     }
 
+    // --- container (put in / get from / look in) ---
+
+    fn make_state_with_container() -> GameState {
+        let mut state = make_state();
+        let registry = &mut state.world.object_registry;
+
+        registry.insert("bag".to_string(), ObjectTemplate {
+            id: "bag".to_string(), names: vec!["bag".to_string()],
+            short: "a canvas bag".to_string(), room_look: String::new(),
+            description: "A sturdy canvas bag.".to_string(), read: None,
+            category: ObjectCategory::Container,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 10,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 5,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        registry.insert("pebble".to_string(), ObjectTemplate {
+            id: "pebble".to_string(), names: vec!["pebble".to_string()],
+            short: "a pebble".to_string(), room_look: String::new(),
+            description: "A small smooth pebble.".to_string(), read: None,
+            category: ObjectCategory::Component,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 0,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+
+        let inv = &mut state.players.get_mut(&CLIENT).unwrap().inventory;
+        inv.push(ObjectInstance::new("bag"));
+        inv.push(ObjectInstance::new("pebble"));
+        state
+    }
+
+    #[test]
+    fn put_in_moves_item_into_container() {
+        let mut state = make_state_with_container();
+        let (out, _) = execute(Command::PutIn { item: "pebble".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        assert!(out.contains("put"), "got: {out}");
+        assert!(!state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "pebble"));
+        let bag = state.players[&CLIENT].inventory.iter().find(|o| o.template_id == "bag").unwrap();
+        assert_eq!(bag.contents.len(), 1);
+    }
+
+    #[test]
+    fn put_in_non_container_gives_error() {
+        let mut state = make_state_with_container();
+        let (out, _) = execute(Command::PutIn { item: "bag".to_string(), container: "pebble".to_string() }, CLIENT, &mut state);
+        assert!(out.contains("isn't a container"), "got: {out}");
+    }
+
+    #[test]
+    fn get_from_moves_item_to_inventory() {
+        let mut state = make_state_with_container();
+        execute(Command::PutIn { item: "pebble".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        let (out, _) = execute(Command::GetFrom { item: "pebble".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        assert!(out.contains("take"), "got: {out}");
+        assert!(state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "pebble"));
+        let bag = state.players[&CLIENT].inventory.iter().find(|o| o.template_id == "bag").unwrap();
+        assert!(bag.contents.is_empty());
+    }
+
+    #[test]
+    fn get_from_missing_item_gives_error() {
+        let mut state = make_state_with_container();
+        let (out, _) = execute(Command::GetFrom { item: "sword".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        assert!(out.contains("no 'sword'"), "got: {out}");
+    }
+
+    #[test]
+    fn look_in_empty_container() {
+        let mut state = make_state_with_container();
+        let (out, _) = execute(Command::LookIn("bag".to_string()), CLIENT, &mut state);
+        assert!(out.contains("empty"), "got: {out}");
+    }
+
+    #[test]
+    fn look_in_lists_contents() {
+        let mut state = make_state_with_container();
+        execute(Command::PutIn { item: "pebble".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        let (out, _) = execute(Command::LookIn("bag".to_string()), CLIENT, &mut state);
+        assert!(out.contains("pebble"), "got: {out}");
+    }
+
+    #[test]
+    fn container_full_rejects_further_items() {
+        let mut state = make_state_with_container();
+        // fill the bag (capacity 5) with 5 pebbles
+        for _ in 0..5 {
+            state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("pebble"));
+        }
+        for _ in 0..5 {
+            execute(Command::PutIn { item: "pebble".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        }
+        // One more pebble remains in inventory; try to put it in
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("pebble"));
+        let (out, _) = execute(Command::PutIn { item: "pebble".to_string(), container: "bag".to_string() }, CLIENT, &mut state);
+        assert!(out.contains("full"), "got: {out}");
+    }
+
     // --- stacking (get / drop with qty) ---
 
     fn make_state_with_stackables() -> GameState {
@@ -1244,7 +1476,7 @@ mod tests {
             category: ObjectCategory::Component,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
             flags: vec![ObjectFlag::Stackable, ObjectFlag::Salvaged], value: 2,
-            equip_slot: None, health_restore: 0, consume_message: None,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1326,7 +1558,7 @@ mod tests {
             description: "A sturdy hunting knife.".to_string(), read: None,
             category: ObjectCategory::Weapon,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 10, equip_slot: None, health_restore: 0, consume_message: None,
+            flags: vec![], value: 10, equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1336,7 +1568,7 @@ mod tests {
             description: "A Corporate-issue stun baton.".to_string(), read: None,
             category: ObjectCategory::Weapon,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 30, equip_slot: None, health_restore: 0, consume_message: None,
+            flags: vec![], value: 30, equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1346,7 +1578,7 @@ mod tests {
             description: "Standard Corporate body armor.".to_string(), read: None,
             category: ObjectCategory::Armor,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 50, equip_slot: Some(EquipSlot::Body), health_restore: 0, consume_message: None,
+            flags: vec![], value: 50, equip_slot: Some(EquipSlot::Body), health_restore: 0, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1356,7 +1588,7 @@ mod tests {
             description: "Worn leather work gloves.".to_string(), read: None,
             category: ObjectCategory::Armor,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 5, equip_slot: Some(EquipSlot::Hands), health_restore: 0, consume_message: None,
+            flags: vec![], value: 5, equip_slot: Some(EquipSlot::Hands), health_restore: 0, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1458,7 +1690,7 @@ mod tests {
             category: ObjectCategory::Consumable,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
             flags: vec![], value: 5,
-            equip_slot: None, health_restore: 20, consume_message: None,
+            equip_slot: None, health_restore: 20, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1469,7 +1701,7 @@ mod tests {
             read: None, category: ObjectCategory::Consumable,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
             flags: vec![], value: 40,
-            equip_slot: None, health_restore: 50,
+            equip_slot: None, health_restore: 50, capacity: 0,
             consume_message: Some("The injector fires. Warmth spreads through your arm.".to_string()),
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
@@ -1481,7 +1713,7 @@ mod tests {
             category: ObjectCategory::Component,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
             flags: vec![], value: 0,
-            equip_slot: None, health_restore: 0, consume_message: None,
+            equip_slot: None, health_restore: 0, consume_message: None, capacity: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
