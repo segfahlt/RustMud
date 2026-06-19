@@ -259,6 +259,18 @@ impl Registry {
                 parse: parse_ohelp,
             },
             CommandDef {
+                name: "ofind", priority: 10, aliases: &[],
+                category: Category::Admin,
+                usage: "ofind <template_id>",
+                description: "Find all instances of an object by exact template ID. [Admin|Builder]",
+                parse: |rest| {
+                    if rest.is_empty() {
+                        return Err(ParseError::MissingTarget("ofind requires a template ID.".to_string()));
+                    }
+                    Ok(Command::OFind(rest.to_string()))
+                },
+            },
+            CommandDef {
                 name: "quit", priority: 10, aliases: &["exit"],
                 category: Category::Info,
                 usage: "quit",
@@ -542,8 +554,8 @@ fn parse_ohelp(rest: &str) -> Result<Command, ParseError> {
     if rest == "-list" {
         return Ok(Command::OHelp(OHelpQuery::List));
     }
-    if let Some(text) = rest.strip_prefix("-desc ") {
-        let text = text.trim();
+    if rest == "-desc" || rest.starts_with("-desc ") {
+        let text = rest.strip_prefix("-desc").unwrap_or("").trim();
         if text.is_empty() {
             return Err(ParseError::MissingTarget("ohelp -desc requires search text.".to_string()));
         }

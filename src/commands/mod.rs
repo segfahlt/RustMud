@@ -41,6 +41,7 @@ pub enum Command {
     WorldMap,                   // wmap | worldmap
     Help(Option<String>),       // help | help <topic>
     OHelp(OHelpQuery),          // ohelp object reference system
+    OFind(String),              // ofind <template_id>  [Admin|Builder]
     Quit,
     Shutdown,                   // kill game + gateway  [Admin]
     Reboot,                     // graceful game restart [Admin|Dev]
@@ -259,6 +260,17 @@ mod tests {
     fn parse_teleport_bad_id()   { assert!(matches!(parse("teleport abc"), Err(ParseError::MissingTarget(_)))); }
     #[test]
     fn parse_teleport_two_args() { assert!(matches!(parse("teleport 0 1"), Err(ParseError::MissingTarget(_)))); }
+
+    // --- ohelp ---
+    #[test] fn parse_ohelp_bare()   { assert!(matches!(parse("ohelp"),             Ok(Command::OHelp(OHelpQuery::Overview)))); }
+    #[test] fn parse_ohelp_list()   { assert!(matches!(parse("ohelp -list"),        Ok(Command::OHelp(OHelpQuery::List)))); }
+    #[test] fn parse_ohelp_search() { assert!(matches!(parse("ohelp knife"),        Ok(Command::OHelp(OHelpQuery::Search(_))))); }
+    #[test] fn parse_ohelp_desc()   { assert!(matches!(parse("ohelp -desc blade"),  Ok(Command::OHelp(OHelpQuery::Desc(_))))); }
+    #[test] fn parse_ohelp_desc_empty() { assert!(matches!(parse("ohelp -desc"),    Err(ParseError::MissingTarget(_)))); }
+
+    // --- ofind ---
+    #[test] fn parse_ofind_id()     { assert!(matches!(parse("ofind hunting_knife"), Ok(Command::OFind(_)))); }
+    #[test] fn parse_ofind_empty()  { assert!(matches!(parse("ofind"),               Err(ParseError::MissingTarget(_)))); }
 
     // --- help ---
     #[test] fn parse_help()       { assert!(matches!(parse("help"),      Ok(Command::Help(None)))); }

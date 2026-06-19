@@ -255,7 +255,7 @@ async fn dispatch(
         SessionState::NeedCharName { account_id } =>
             on_char_name(client_id, input, account_id, state, save, writer).await,
         SessionState::Playing { account_id, character_id, permissions } =>
-            on_command(client_id, input, account_id, character_id, permissions, state, writer, signal_tx).await,
+            on_command(client_id, input, account_id, character_id, permissions, state, save, writer, signal_tx).await,
     }
 }
 
@@ -461,6 +461,7 @@ async fn on_command(
     character_id: String,
     permissions:  HashSet<Permission>,
     state:        &mut GameState,
+    save:         &WorldSave,
     writer:       &mut tokio::net::unix::OwnedWriteHalf,
     signal_tx:    &tokio::sync::mpsc::Sender<Signal>,
 ) -> Option<SessionState> {
@@ -503,6 +504,16 @@ async fn on_command(
                 "Permission denied.\n\n{c}>{/} ".to_string()
             } else {
                 let output = teleport(loc, client_id, state);
+                format!("{output}\n{{c}}>{{/}} ")
+            }
+        }
+        Ok(Command::OFind(id)) => {
+            if !has_perm(&permissions, Permission::Admin)
+                && !has_perm(&permissions, Permission::Builder)
+            {
+                "Permission denied.\n\n{c}>{/} ".to_string()
+            } else {
+                let output = cmd_ofind(&id, state, save);
                 format!("{output}\n{{c}}>{{/}} ")
             }
         }
@@ -621,6 +632,133 @@ fn location_display_name(loc: PlayerLocation, world: &World) -> String {
                 .map(|r| r.name.clone())
                 .unwrap_or_else(|| "The Beginning".to_string())
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ofind
+// ---------------------------------------------------------------------------
+
+fn count_in_objects(objects: &[rustmud::world::ObjectInstance], id: &str) -> Vec<String> {
+    let mut hits = Vec::new();
+    for obj in objects {
+        if obj.template_id == id {
+            let qty = if obj.quantity > 1 { format!(" x{}", obj.quantity) } else { String::new() };
+            hits.push(qty);
+        }
+        for nested in &obj.contents {
+            if nested.template_id == id {
+                let qty = if nested.quantity > 1 { format!(" x{}", nested.quantity) } else { String::new() };
+                hits.push(format!("{} (in {})", qty, nested.template_id));
+            }
+        }
+    }
+    hits
+}
+
+fn cmd_ofind(id: &str, state: &GameState, save: &WorldSave) -> String {
+    let short = state.world.object_registry.get(id)
+        .map(|t| t.short.as_str())
+        .unwrap_or("(unregistered template)");
+
+    let mut out = format!("{{Y}}ofind: {id}{{/}}  \"{short}\"\n\n");
+
+    // --- Area floors ---
+    let mut floor_lines: Vec<String> = Vec::new();
+    for zone in state.world.zones() {
+        for area in zone.areas() {
+            let hits = count_in_objects(&area.objects, id);
+            for h in hits {
+                floor_lines.push(format!(
+                    "    area {},{},{}  {}{}",
+                    zone.coord.q, zone.coord.r, area.id, area.name, h
+                ));
+            }
+        }
+    }
+    for (&room_id, room) in state.world.rooms() {
+        let hits = count_in_objects(&room.objects, id);
+        for h in hits {
+            let label = if room.breadcrumb_building.is_empty() {
+                room.name.clone()
+            } else {
+                format!("{} — {}", room.name, room.breadcrumb_building)
+            };
+            floor_lines.push(format!("    room {:<6}  {}{}", room_id, label, h));
+        }
+    }
+    floor_lines.sort();
+    if !floor_lines.is_empty() {
+        out.push_str("  Floors\n");
+        for l in &floor_lines { out.push_str(l); out.push('\n'); }
+        out.push('\n');
+    }
+
+    // --- Online players ---
+    let mut online_lines: Vec<String> = Vec::new();
+    for player in state.players.values() {
+        let name = capitalize(&player.character_id);
+        let inv_hits = count_in_objects(&player.inventory, id);
+        for h in inv_hits {
+            online_lines.push(format!("    {:<16} inventory{}", name, h));
+        }
+        for slot in rustmud::world::object::EquipSlot::all() {
+            if let Some(obj) = player.equipment.slot(slot) {
+                if obj.template_id == id {
+                    online_lines.push(format!("    {:<16} equipment [{}]", name, slot.label()));
+                }
+            }
+        }
+    }
+    online_lines.sort();
+    if !online_lines.is_empty() {
+        out.push_str("  Online\n");
+        for l in &online_lines { out.push_str(l); out.push('\n'); }
+        out.push('\n');
+    }
+
+    // --- Offline players ---
+    let online_ids: std::collections::HashSet<&str> = state.players.values()
+        .map(|p| p.character_id.as_str())
+        .collect();
+    let mut offline_lines: Vec<String> = Vec::new();
+    for (char_id, cs) in &save.characters {
+        if online_ids.contains(char_id.as_str()) { continue; }
+        let name = capitalize(char_id);
+        let inv_hits = count_in_objects(&cs.inventory, id);
+        for h in inv_hits {
+            offline_lines.push(format!("    {:<16} inventory{}", name, h));
+        }
+        for slot in rustmud::world::object::EquipSlot::all() {
+            if let Some(obj) = cs.equipment.slot(slot) {
+                if obj.template_id == id {
+                    offline_lines.push(format!("    {:<16} equipment [{}]", name, slot.label()));
+                }
+            }
+        }
+    }
+    offline_lines.sort();
+    if !offline_lines.is_empty() {
+        out.push_str("  Offline\n");
+        for l in &offline_lines { out.push_str(l); out.push('\n'); }
+        out.push('\n');
+    }
+
+    let total: usize = floor_lines.len() + online_lines.len() + offline_lines.len();
+    if total == 0 {
+        out.push_str("  No instances found.\n");
+    } else {
+        out.push_str(&format!("  {} instance{} total\n", total, if total == 1 { "" } else { "s" }));
+    }
+
+    out
+}
+
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None    => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
 }
 
