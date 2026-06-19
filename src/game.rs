@@ -1,12 +1,16 @@
 use std::collections::HashMap;
 
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+
 use crate::commands::{help_text, Command, OHelpQuery};
 use crate::world::object::{Bulk, EquipSlot, Material, ObjectCategory, ObjectFlag, ObjectTemplate, Weight};
 use crate::world::AreaRef;
-use crate::mob::{Equipment, MobCore, MonsterInstance, Player};
+use crate::mob::{MobCore, MonsterInstance, Player};
 use crate::world::MonsterTemplate;
 use crate::persist::CharacterSave;
 use crate::world::{Area, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
+use crate::world::mob_gen;
 
 pub struct GameState {
     pub world:    World,
@@ -73,6 +77,42 @@ impl GameState {
             .collect();
         lines.sort();
         lines
+    }
+
+    /// Run the procedural mob generation check for the given area.
+    /// Silently no-ops if the area ref is invalid or the formula doesn't fire.
+    pub fn try_generate_mob(&mut self, area_ref: AreaRef) {
+        let zone = match self.world.get_zone(area_ref.zone) {
+            Some(z) => z,
+            None    => return,
+        };
+        let area = match zone.get_area(area_ref.area_id) {
+            Some(a) => a,
+            None    => return,
+        };
+
+        let ctx = mob_gen::build_context(zone, area, &self.world.mob_registry, &self.monsters);
+        let mut rng = StdRng::from_entropy();
+        if !mob_gen::should_generate(&ctx, &mut rng) {
+            return;
+        }
+
+        let mut tmpl = mob_gen::generate(&ctx, &mut rng);
+        let id       = mob_gen::unique_id(&tmpl.id, &self.world.mob_registry);
+        tmpl.id      = id.clone();
+
+        let mob_id  = self.world.next_mob_id();
+        let loc     = PlayerLocation::area(area_ref.zone, area_ref.area_id);
+        let instance = MonsterInstance::spawn(mob_id, &tmpl, loc);
+
+        self.world.mob_registry.insert(id.clone(), tmpl.clone());
+        self.generated_mob_templates.insert(id, tmpl);
+        self.monsters.insert(mob_id, instance);
+
+        // Increment visit counter.
+        if let Some(a) = self.world.get_area_mut(area_ref) {
+            a.visit_count = a.visit_count.saturating_add(1);
+        }
     }
 
     pub fn add_player(
@@ -267,6 +307,7 @@ fn go_direction(dir: Direction, client_id: u32, state: &mut GameState) -> String
             if let Some(new_ref) = area_exit {
                 state.players.get_mut(&client_id).unwrap().core.location =
                     PlayerLocation::area(new_ref.zone, new_ref.area_id);
+                state.try_generate_mob(new_ref);
                 return describe_location(client_id, state);
             }
 

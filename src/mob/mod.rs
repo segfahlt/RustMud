@@ -87,6 +87,8 @@ mod tests {
             follows_aggressive: false, calls_for_help: false,
             detection_range: 1, flee_threshold: 0,
             faction: None, respawn_secs: 60, chance_of_loot: 0, loot_table: vec![],
+            food_chain_tier: crate::world::FoodChainTier::Grazer,
+            generated: false,
         };
         MonsterInstance::spawn(2, &tmpl, loc())
     }

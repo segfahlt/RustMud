@@ -70,6 +70,8 @@ mod tests {
             detection_range: 1, flee_threshold: 0,
             faction: None, respawn_secs: 60,
             chance_of_loot: 50, loot_table: vec![],
+            food_chain_tier: crate::world::FoodChainTier::Grazer,
+            generated: false,
         }
     }
 

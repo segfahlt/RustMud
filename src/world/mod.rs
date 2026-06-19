@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub mod area;
 pub mod hex;
 pub mod loader;
+pub mod mob_gen;
 pub mod mob_template;
 pub mod object;
 pub mod room;
