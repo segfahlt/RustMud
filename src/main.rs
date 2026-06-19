@@ -21,6 +21,30 @@ const ACCOUNTS_DIR: &str = "data/accounts";
 const CHARS_DIR:    &str = "data/characters";
 const SAVE_PATH:    &str = "data/save/state.json";
 
+const INTRO_BANNER: &str = r#"
+{K}         .  *  .    .  *  .    .  *  .    .  *  .
+     *  .    .  *  .    .  *  .    .  *  .    .  *{/}
+
+{c}                   _______________
+                .-'               '-.
+              .'   .    *    .  *    '.
+             /                         \
+            |   .    ___________    .   |
+            |       /           \       |
+            |   .  |  (  {W}( * ){c}  )  .   |
+            |       \___________/       |
+            |   .                   .   |
+             \                         /
+              '.   .    *    .  *    .'
+                '-._______________.-'{/}
+
+{Y}                    T H E   E Y E{/}
+
+{g}            A world waking. A light
+                 that never sets.{/}
+
+"#;
+
 // Room 1 is the Cryo-Bay aboard the Perihelion — the new player start.
 fn start_loc() -> PlayerLocation {
     PlayerLocation::room(1)
@@ -164,7 +188,7 @@ async fn handle_msg(
             sessions.insert(client_id, SessionState::NeedUsername);
             send(writer, GatewayMsg::Output {
                 client_id,
-                text: "Username: ".to_string(),
+                text: format!("{INTRO_BANNER}Username: "),
             }).await;
         }
         GameMsg::Input { client_id, line } => {

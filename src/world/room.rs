@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use super::fixture::Fixture;
 use super::hex::ExitDestination;
 use super::object::{ObjectInstance, ObjectRegistry};
 
@@ -71,7 +70,6 @@ pub struct Room {
     pub breadcrumb_zone:      String,
     pub breadcrumb_building:  String,
     pub exits:                HashMap<Direction, ExitDestination>,
-    pub fixtures:             Vec<Fixture>,
     pub objects:              Vec<ObjectInstance>,
 }
 
@@ -98,21 +96,18 @@ impl Room {
 
         let mut out = format!("{}\n{}", header, self.description);
 
-        let mut extras = Vec::new();
-        for fixture in &self.fixtures {
-            let line = fixture.state_line();
-            if !line.is_empty() {
-                extras.push(line.to_string());
-            }
-        }
+        let mut extras: Vec<&str> = Vec::new();
         for obj in &self.objects {
-            extras.push(obj.room_look(registry).to_string());
+            let line = obj.visible_line(registry);
+            if !line.is_empty() {
+                extras.push(line);
+            }
         }
         if !extras.is_empty() {
             out.push('\n');
             for line in extras {
                 out.push('\n');
-                out.push_str(&line);
+                out.push_str(line);
             }
         }
 
@@ -154,7 +149,6 @@ mod tests {
             breadcrumb_zone:     "Zone".to_string(),
             breadcrumb_building: "Building".to_string(),
             exits:               HashMap::new(),
-            fixtures:            vec![],
             objects:             vec![],
         }
     }

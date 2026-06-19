@@ -1,5 +1,5 @@
 use crate::world::{Direction, HexCoord, PlayerLocation};
-use super::{Command, ParseError};
+use super::{Command, OHelpQuery, ParseError};
 
 // --- Category ---
 
@@ -180,6 +180,13 @@ impl Registry {
                 usage: "help [command]",
                 description: "Show available commands, or help for a specific command.",
                 parse: parse_help,
+            },
+            CommandDef {
+                name: "ohelp", priority: 10, aliases: &[],
+                category: Category::Info,
+                usage: "ohelp | ohelp -list | ohelp <name> | ohelp -desc <text>",
+                description: "Object reference: browse and search the object registry.",
+                parse: parse_ohelp,
             },
             CommandDef {
                 name: "quit", priority: 10, aliases: &["exit"],
@@ -364,6 +371,23 @@ fn parse_reboot(rest: &str) -> Result<Command, ParseError> {
         "refresh" => Ok(Command::RebootRefresh),
         _         => Err(ParseError::UnknownCommand(format!("reboot {rest}"))),
     }
+}
+
+fn parse_ohelp(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Ok(Command::OHelp(OHelpQuery::Overview));
+    }
+    if rest == "-list" {
+        return Ok(Command::OHelp(OHelpQuery::List));
+    }
+    if let Some(text) = rest.strip_prefix("-desc ") {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err(ParseError::MissingTarget("ohelp -desc requires search text.".to_string()));
+        }
+        return Ok(Command::OHelp(OHelpQuery::Desc(text.to_string())));
+    }
+    Ok(Command::OHelp(OHelpQuery::Search(rest.to_string())))
 }
 
 fn parse_teleport(rest: &str) -> Result<Command, ParseError> {

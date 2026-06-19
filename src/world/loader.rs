@@ -8,9 +8,10 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use super::area::Area;
-use super::fixture::Fixture;
-use super::hex::{AreaRef, ExitDestination, HexCoord};
-use super::object::{ObjectInstance, ObjectTemplate};
+use super::hex::{AreaRef, EvolutionStage, ExitDestination, HexCoord};
+use super::object::{
+    Bulk, FixturePermanence, Material, ObjectInstance, ObjectTemplate, Weight,
+};
 use super::room::{Direction, Room};
 use super::{World, WorldMap, Zone};
 
@@ -23,6 +24,60 @@ pub struct ObjectSpawnFile {
     pub template_id: String,
 }
 
+/// Inline fixture definition. The loader auto-registers an ObjectTemplate for each
+/// fixture and spawns one ObjectInstance into the containing room or area.
+#[derive(Deserialize, JsonSchema)]
+pub struct FixtureFile {
+    pub id:       String,
+    pub names:    Vec<String>,
+    pub category: super::object::ObjectCategory,
+    #[serde(default)]
+    pub state_lines: Option<HashMap<String, String>>,
+    /// Shown on `examine <fixture>`. Becomes ObjectTemplate.description.
+    pub examine:  String,
+    #[serde(default)]
+    pub read:     Option<String>,
+    #[serde(default)]
+    pub permanence: FixturePermanence,
+    #[serde(default)]
+    pub minimum_stage: Option<EvolutionStage>,
+    #[serde(default)]
+    pub connects_to_room: Option<u32>,
+    #[serde(default)]
+    pub direction: Option<String>,
+    #[serde(default)]
+    pub coherence_driven: bool,
+    #[serde(default)]
+    pub persist_state: bool,
+}
+
+impl FixtureFile {
+    fn into_template(self) -> ObjectTemplate {
+        let short = self.names.first().cloned().unwrap_or_default();
+        ObjectTemplate {
+            id:          self.id,
+            names:       self.names,
+            short,
+            room_look:   String::new(),
+            description: self.examine,
+            read:        self.read,
+            category:    self.category,
+            weight:      Weight::default(),
+            bulk:        Bulk::default(),
+            material:    Material::default(),
+            flags:       vec![],
+            value:       0,
+            state_lines:      self.state_lines,
+            permanence:       Some(self.permanence),
+            minimum_stage:    self.minimum_stage,
+            connects_to_room: self.connects_to_room,
+            direction:        self.direction,
+            coherence_driven: self.coherence_driven,
+            persist_state:    self.persist_state,
+        }
+    }
+}
+
 #[derive(Deserialize, JsonSchema)]
 pub struct AreaFile {
     pub id: u32,
@@ -31,7 +86,7 @@ pub struct AreaFile {
     #[serde(default)]
     pub exits: HashMap<String, AreaRef>,
     #[serde(default)]
-    pub fixtures: Vec<Fixture>,
+    pub fixtures: Vec<FixtureFile>,
     #[serde(default)]
     pub objects: Vec<ObjectSpawnFile>,
 }
@@ -70,7 +125,7 @@ pub struct RoomFile {
     #[serde(default)]
     pub exits:    HashMap<String, ExitDestination>,
     #[serde(default)]
-    pub fixtures: Vec<Fixture>,
+    pub fixtures: Vec<FixtureFile>,
     #[serde(default)]
     pub objects:  Vec<ObjectSpawnFile>,
 }
@@ -227,6 +282,14 @@ fn load_zone_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
         }
 
         let mut objects = Vec::new();
+
+        for fixture in area_file.fixtures {
+            let template_id = fixture.id.clone();
+            let tmpl = fixture.into_template();
+            world.object_registry.insert(template_id.clone(), tmpl);
+            objects.push(ObjectInstance::new(template_id));
+        }
+
         for spawn in area_file.objects {
             if !world.object_registry.contains_key(&spawn.template_id) {
                 return Err(LoadError::UnknownTemplate {
@@ -243,7 +306,6 @@ fn load_zone_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
             name: area_file.name,
             description: area_file.description,
             exits,
-            fixtures: area_file.fixtures,
             objects,
             ..Area::default()
         });
@@ -279,6 +341,14 @@ fn load_building_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
         }
 
         let mut objects = Vec::new();
+
+        for fixture in room_file.fixtures {
+            let template_id = fixture.id.clone();
+            let tmpl = fixture.into_template();
+            world.object_registry.insert(template_id.clone(), tmpl);
+            objects.push(ObjectInstance::new(template_id));
+        }
+
         for spawn in room_file.objects {
             if !world.object_registry.contains_key(&spawn.template_id) {
                 return Err(LoadError::UnknownTemplate {
@@ -308,7 +378,6 @@ fn load_building_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
             breadcrumb_zone: zone_label,
             breadcrumb_building: bldg_label,
             exits,
-            fixtures: room_file.fixtures,
             objects,
         });
     }
@@ -355,11 +424,30 @@ mod tests {
     }
 
     #[test]
+    fn fixture_converts_to_template_and_spawns_instance() {
+        let json = r#"{
+            "id": "test_gate",
+            "names": ["gate", "test gate"],
+            "category": "structural",
+            "state_lines": { "default": "A gate stands here." },
+            "examine": "A solid gate.",
+            "permanence": "permanent"
+        }"#;
+        let ff: FixtureFile = serde_json::from_str(json).unwrap();
+        let tmpl = ff.into_template();
+        assert_eq!(tmpl.id, "test_gate");
+        assert!(tmpl.category.is_fixture());
+        assert!(tmpl.state_lines.is_some());
+        assert_eq!(tmpl.description, "A solid gate.");
+    }
+
+    #[test]
     fn load_world_succeeds_and_passes_validation() {
         let world = load_world(Path::new("data")).expect("world should load from data/");
-        assert!(world.get_room(1).is_some(), "Cryo-Bay (room 1) should exist as a building room");
-        let harbor = AreaRef { zone: HexCoord::new(0, 1), area_id: 5 };
-        assert!(world.get_area(harbor).is_some(), "Harbor Dock (zone q=0,r=1, area 5) should exist");
+        assert!(world.get_room(1).is_some(),  "Cryo-Bay (room 1) should exist");
+        assert!(world.get_room(5).is_some(),  "Harbor Dock (room 5) should exist");
+        assert!(world.get_room(10).is_some(), "South Gate — Interior (room 10) should exist");
+        assert!(world.get_room(20).is_some(), "North Gate (room 20) should exist");
         assert!(world.validate().is_empty(), "loaded world should be valid");
     }
 }

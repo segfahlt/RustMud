@@ -6,17 +6,24 @@
   "areas": [
     {
       "id": 1,
-      "name": "Continental Interior \u2014 Edge",
-      "description": "The terrain just outside the settlement's restricted west gate is unlike anything near the other exits. No ejecta field here, no debris-thinned ground, no beaten paths from resource runners. The ecosystem is intact and dense \u2014 alien vegetation in configurations that don't follow any pattern evolution would produce without interference. The Coherence is heavier here. Something in the undergrowth to the west watches without revealing itself. The gate and checkpoint are visible back to the east.",
-      "exits": {
-        "east": {
-          "zone": {
-            "q": 0,
-            "r": 0
+      "name": "Continental Interior — Edge",
+      "description": "The terrain just outside the settlement's restricted west gate is unlike anything near the other exits. No ejecta field here, no debris-thinned ground, no beaten paths from resource runners. The ecosystem is intact and dense — alien vegetation in configurations that don't follow any pattern evolution would produce without interference. The Coherence is heavier here. Something in the undergrowth to the west watches without revealing itself. The gate and checkpoint are visible back to the east.",
+      "fixtures": [
+        {
+          "id": "west_gate",
+          "names": ["gate", "west gate", "settlement gate"],
+          "category": "structural",
+          "state_lines": {
+            "default": "The West Gate of Firstfall stands to the east, wider than the other gates to allow equipment passage."
           },
-          "area_id": 47
+          "look": "A wide reinforced gate, frame marked with impact scoring from the planet's weather events. The exterior shows more wear than the other gates.",
+          "examine": "The west gate's exterior frame has no duty log, no team assignments, no notice board. Just a single welded plate that reads: RESTRICTED ACCESS — CORPORATE AUTHORIZATION REQUIRED. Someone has scratched beneath it: 'authorization is a polite word for they don't want you to know what's out here.'",
+          "permanence": "permanent",
+          "connects_to_room": 40,
+          "direction": "east"
         }
-      }
+      ],
+      "exits": {}
     }
   ]
 }

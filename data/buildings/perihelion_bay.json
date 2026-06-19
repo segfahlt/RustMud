@@ -1,0 +1,50 @@
+{
+  "id": "perihelion_bay",
+  "name": "Perihelion Bay",
+  "breadcrumb_zone": "Arrival",
+  "breadcrumb_building": "Perihelion Bay",
+  "rooms": [
+    {
+      "id": 5,
+      "name": "Harbor Dock",
+      "description": "A prefab dock extending over water the color of strong tea. The bay is calm, its surface broken occasionally by something moving below that is not a fish. Two fishing boats and a coastal scout with a cracked hull are moored here. The air smells of salt and something underneath that has no Earth equivalent — sweet and faintly metallic, almost alive. A worn trail cuts into the bluff face to the west.",
+      "fixtures": [
+        {
+          "id": "shuttle_hatch",
+          "names": ["hatch", "shuttle hatch", "ramp", "shuttle"],
+          "category": "structural",
+          "state_lines": {
+            "default": "The shuttle's disembarkation hatch stands open at the edge of the dock."
+          },
+          "look": "The hatch leads back up into the body of the Perihelion. Cold recycled air drifts down from inside.",
+          "examine": "The disembarkation hatch is propped open — they expect more arrivals. The ramp angles up into the ship's lower section.",
+          "permanence": "permanent"
+        }
+      ],
+      "exits": {
+        "north": { "type": "room", "room_id": 4 },
+        "west":  { "type": "room", "room_id": 6 }
+      }
+    },
+    {
+      "id": 6,
+      "breadcrumb_building": "Bluff Path",
+      "name": "Lower",
+      "description": "A worn track cuts up the face of the coastal bluff, switchbacking toward the settlement walls above. The rock here is dark and layered, threaded with mineral veins that catch the alien light in colors without Earth names. An ancient crater's flooded southern rim stretches below to the east — a natural harbor, still and wrong-colored under the alien sky. The path continues upward to the north.",
+      "exits": {
+        "east":  { "type": "room", "room_id": 5 },
+        "north": { "type": "room", "room_id": 7 }
+      }
+    },
+    {
+      "id": 7,
+      "breadcrumb_building": "Bluff Path",
+      "name": "Upper",
+      "description": "The path crests the bluff and a walled settlement comes into view — a cluster of gray prefab structures surrounded by a security perimeter, raw and functional against the alien sky. A gate in the wall directly north glows amber, the warmest color you've seen since Earth. The path descends behind you to the south. The Eye hangs on the horizon. You are here. This is the planet.",
+      "exits": {
+        "south": { "type": "room", "room_id": 6 },
+        "north": { "type": "room", "room_id": 10 }
+      }
+    }
+  ]
+}

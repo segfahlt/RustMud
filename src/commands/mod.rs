@@ -6,6 +6,15 @@ use std::sync::OnceLock;
 use crate::world::{Direction, PlayerLocation};
 use registry::{Category, Registry};
 
+// --- OHelpQuery ---
+
+pub enum OHelpQuery {
+    Overview,
+    List,
+    Search(String),  // exact id → full detail; otherwise name substring → list
+    Desc(String),    // description substring → list
+}
+
 // --- Command ---
 // The parsed result of a player's input.
 // Variants carry typed arguments — no raw strings past the parser.
@@ -20,6 +29,7 @@ pub enum Command {
     Inventory,                  // inventory | i
     WorldMap,                   // wmap | worldmap
     Help(Option<String>),       // help | help <topic>
+    OHelp(OHelpQuery),          // ohelp object reference system
     Quit,
     Shutdown,                   // kill game + gateway  [Admin]
     Reboot,                     // graceful game restart [Admin|Dev]

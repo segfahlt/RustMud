@@ -6,17 +6,24 @@
   "areas": [
     {
       "id": 1,
-      "name": "Coastal Scrubland \u2014 Edge",
-      "description": "The terrain just outside Firstfall's East Gate \u2014 low alien vegetation with textures that don't match anything in Earth botany, growing in the narrow band where impact debris meets native coastal soil. The colors shift subtly with the light. Something in the undergrowth moves with more coordination than individual animals should show. Firstfall's East Gate is to the west. The coast lies further east.",
-      "exits": {
-        "west": {
-          "zone": {
-            "q": 0,
-            "r": 0
+      "name": "Coastal Scrubland — Edge",
+      "description": "The terrain just outside Firstfall's East Gate — low alien vegetation with textures that don't match anything in Earth botany, growing in the narrow band where impact debris meets native coastal soil. The colors shift subtly with the light. Something in the undergrowth moves with more coordination than individual animals should show. Firstfall's East Gate is to the west. The coast lies further east.",
+      "fixtures": [
+        {
+          "id": "east_gate",
+          "names": ["gate", "east gate", "settlement gate"],
+          "category": "structural",
+          "state_lines": {
+            "default": "Firstfall's East Gate is visible to the west, set into the perimeter wall."
           },
-          "area_id": 43
+          "look": "A reinforced door in the settlement perimeter wall. A duty log is mounted beside the exterior frame.",
+          "examine": "The duty log shows who came through and when. Recent entries are sparse. The last outbound runner is logged two days ago — no return entry.",
+          "permanence": "permanent",
+          "connects_to_room": 37,
+          "direction": "west"
         }
-      }
+      ],
+      "exits": {}
     }
   ]
 }

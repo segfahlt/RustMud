@@ -1,0 +1,548 @@
+{
+  "id": "firstfall",
+  "name": "Firstfall",
+  "breadcrumb_zone": "Firstfall",
+  "breadcrumb_building": "",
+  "object_templates": [
+    {
+      "id": "handwritten_note",
+      "names": ["note", "handwritten note"],
+      "short": "a handwritten note",
+      "room_look": "A handwritten note rests on the last chair.",
+      "description": "Neat handwriting on a torn corner of something larger. 'The slides are wrong. Find Elder Rourke in the settler section of town. Listen to everything.' No signature. The ink is smeared at one corner — water, or something else.",
+      "category": "data",
+      "weight": "tiny", "bulk": "tiny", "material": "paper",
+      "flags": ["EARTH_ORIGIN"],
+      "value": 0
+    },
+    {
+      "id": "personal_photograph",
+      "names": ["photograph", "photo", "personal photograph"],
+      "short": "a personal photograph",
+      "room_look": "A photograph lies face-down on an empty bunk.",
+      "description": "A printed photograph, kept face-down. When you turn it over: three people and a coastline that has no chance of being this one. The colors are oversaturated the way Earth cameras always were. Nobody is looking at the camera. On the back, in a hand different from the note in the briefing room: 'Thessaly Bay, 2173. We'll go back.'",
+      "category": "data",
+      "weight": "tiny", "bulk": "tiny", "material": "paper",
+      "flags": ["EARTH_ORIGIN"],
+      "value": 5
+    },
+    {
+      "id": "old_paperback",
+      "names": ["book", "paperback", "novel"],
+      "short": "a dog-eared paperback",
+      "room_look": "A dog-eared paperback novel sits on the card table.",
+      "description": "A physical book — paper, ink, binding glue. Someone brought this from Earth. It weighs almost nothing and costs a staggering amount in cargo allowance to justify. The spine is cracked at three places. The last fifty pages are unread. The bookmark is a boarding pass from a transit hub that no longer exists.",
+      "category": "data",
+      "weight": "tiny", "bulk": "small", "material": "paper",
+      "flags": ["EARTH_ORIGIN"],
+      "value": 20
+    },
+    {
+      "id": "earth_whiskey",
+      "names": ["whiskey", "bottle", "earth whiskey"],
+      "short": "a bottle of Earth whiskey",
+      "room_look": "A sealed bottle of Earth whiskey sits on the rail.",
+      "description": "Unopened. The seal is still intact. Aged twelve years on a world four light-years from here. The label is water-stained but the contents are not. Someone brought this and has not opened it. The fact that it is sitting here unguarded says something about whoever left it, or about what they decided.",
+      "category": "trade_good",
+      "weight": "light", "bulk": "small", "material": "composite",
+      "flags": ["EARTH_ORIGIN"],
+      "value": 300
+    }
+  ],
+  "rooms": [
+    {
+      "id": 10,
+      "breadcrumb_building": "South Gate",
+      "name": "Interior",
+      "description": "The inner face of the settlement's south entrance. The wall is Corporate security fencing bolted to salvaged structural supports — higher than it needs to be and not quite high enough. A guard post stands to one side, occupied by someone who has seen enough new arrivals to know which ones will last. A processing facility opens ahead to the north. The gate mechanism stands to the south.",
+      "exits": {
+        "south": { "type": "room", "room_id": 7 },
+        "north": { "type": "room", "room_id": 11 }
+      }
+    },
+    {
+      "id": 11,
+      "breadcrumb_building": "The Receiving",
+      "name": "Intake Lobby",
+      "description": "A prefab waiting room with plastic chairs and a counter nobody looks happy to be on either side of. A hand-drawn sign reads: WELCOME TO PORT MERIDIAN. Someone has crossed out PORT MERIDIAN and written FIRSTFALL in large letters. A second sign below it: ALL NEW ARRIVALS MUST COMPLETE INTAKE PROCESSING BEFORE ACCESSING COLONY FACILITIES. Processing continues north through a door. The gate is back to the south.",
+      "exits": {
+        "south": { "type": "room", "room_id": 10 },
+        "north": { "type": "room", "room_id": 12 }
+      }
+    },
+    {
+      "id": 12,
+      "breadcrumb_building": "The Receiving",
+      "name": "Assessment Office",
+      "description": "A narrow office where a Corporate clerk verifies your transit manifest and issues a colony ID chip. The walls are papered with regulations nobody reads and a map of the settlement that's already out of date. The clerk processes arrivals with the efficiency of someone who stopped caring about individuals sometime in the last six months.",
+      "exits": {
+        "south": { "type": "room", "room_id": 11 },
+        "north": { "type": "room", "room_id": 13 }
+      }
+    },
+    {
+      "id": 13,
+      "breadcrumb_building": "The Receiving",
+      "name": "Briefing Room",
+      "description": "Rows of folding chairs face a screen displaying a Corporate orientation presentation on loop. The slides haven't been updated since before the colony launched — they describe a thriving settlement of several hundred, optimistic projections, resource targets. Someone has left a handwritten note on the last chair: 'The slides are wrong. Find Elder Rourke in the settler section of town. Listen to everything.'",
+      "fixtures": [
+        {
+          "id": "orientation_screen",
+          "names": ["screen", "orientation screen", "presentation"],
+          "category": "structural",
+          "state_lines": {
+            "default": "The orientation screen cycles through slides of a colony that no longer exists.",
+            "active": "The orientation screen runs a Corporate welcome loop — optimistic, pre-landing, incorrect."
+          },
+          "look": "A wall-mounted screen showing the Corporate colony orientation presentation. The date stamp in the corner is from before the Perihelion made landfall.",
+          "examine": "Slide 14 of 22. 'Port Meridian is projected to house 800 colonists by Year Two, supported by a robust supply chain and established resource extraction operations.' The projection date is six months ago. The settlement currently holds fewer than 100 people. Someone has written 'WRONG' in marker across the bottom of the screen."
+        }
+      ],
+      "objects": [
+        { "template_id": "handwritten_note" }
+      ],
+      "exits": {
+        "south": { "type": "room", "room_id": 12 },
+        "north": { "type": "room", "room_id": 14 }
+      }
+    },
+    {
+      "id": 14,
+      "breadcrumb_building": "The Receiving",
+      "name": "Medical Screening",
+      "description": "A basic examination room where a medic checks your vitals after cryo-revival. The equipment is quality Corporate issue. The medic is thorough and quiet, noting things in a data pad without commenting. On the wall, a faded poster about symbiont exposure protocols has been defaced with one word over the original text: INEVITABLE.",
+      "exits": {
+        "south": { "type": "room", "room_id": 13 },
+        "north": { "type": "room", "room_id": 15 }
+      }
+    },
+    {
+      "id": 15,
+      "breadcrumb_building": "The Receiving",
+      "name": "Equipment Issue",
+      "description": "A supply window where new arrivals receive the standard-issue colony kit — a basic survival pack, emergency rations, a comm unit, and a printed copy of the colonial regulation summary. The supply officer moves fast and expects you to keep up. The kit is adequate. It is not enough.",
+      "exits": {
+        "south": { "type": "room", "room_id": 14 },
+        "north": { "type": "room", "room_id": 16 }
+      }
+    },
+    {
+      "id": 16,
+      "breadcrumb_building": "The Receiving",
+      "name": "Assignment Board",
+      "description": "The final room of intake processing. A large board covers one wall — bunk assignments, work postings, safety notices, a roster of the missing with no dates next to the names. A door to the north opens onto the settlement proper, the main street stretching away into the small, raw colony that is the only human place on this planet. The processing corridor is back to the south. Welcome to Firstfall.",
+      "exits": {
+        "south": { "type": "room", "room_id": 15 },
+        "north": { "type": "room", "room_id": 17 }
+      }
+    },
+    {
+      "id": 17,
+      "name": "Main Street — South End",
+      "description": "The southern stretch of the settlement's main thoroughfare — a packed-dirt track between prefab buildings. This end of town is quietest, mostly storage and overflow from intake processing. Corporate gray on every building. The street runs north. Official warehouse signage marks a building entrance to the east. Warmth and the smell of real coffee drift from the west.",
+      "exits": {
+        "south": { "type": "room", "room_id": 16 },
+        "north": { "type": "room", "room_id": 18 },
+        "east":  { "type": "room", "room_id": 21 },
+        "west":  { "type": "room", "room_id": 28 }
+      }
+    },
+    {
+      "id": 18,
+      "name": "Main Street — Central",
+      "description": "The heart of the main street. More people pass through here than anywhere else in the colony — Corporate staff, settlers, the occasional Adapted who moves through the crowd without quite touching anyone. Notice boards on both sides carry work offers, warnings, missing persons, and at least one unsigned accusation that Corporate has been falsifying the casualty reports. The most finished building in the settlement — clean prefab panels, a corporate seal visible at the entrance — stands to the east. The sound of fabrication machinery and the smell of hot metal carry from the west.",
+      "exits": {
+        "south": { "type": "room", "room_id": 17 },
+        "north": { "type": "room", "room_id": 19 },
+        "east":  { "type": "room", "room_id": 23 },
+        "west":  { "type": "room", "room_id": 30 }
+      }
+    },
+    {
+      "id": 19,
+      "name": "Main Street — North End",
+      "description": "The northern stretch of main street, where the Corporate prefabs give way to settler construction — rough-cut local timber framing, salvaged panel walls, roofs patched with whatever was available. A clean, well-maintained structure with a medical cross above the door stands to the east. Bunk windows and the low murmur of a common room mark the housing block to the west. The perimeter wall and its working gate are directly ahead to the north.",
+      "exits": {
+        "south": { "type": "room", "room_id": 18 },
+        "north": { "type": "room", "room_id": 20 },
+        "east":  { "type": "room", "room_id": 34 },
+        "west":  { "type": "room", "room_id": 38 }
+      }
+    },
+    {
+      "id": 20,
+      "name": "North Gate",
+      "description": "A heavy working gate — manual mechanism, built to stay closed if power fails. The frame carries a list of resource runner team assignments, most crossed off. The planet presses in from beyond: darker soil, jutting mineral formations, alien scrubland that has never accommodated humans without objection. Not all the runners who went through this gate came back. The settlement extends behind you to the south. The wall top runs west.",
+      "exits": {
+        "south": { "type": "room", "room_id": 19 },
+        "north": { "type": "fixture", "zone": {"q": 0, "r": -1}, "area_id": 1, "fixture_id": "north_gate" },
+        "west":  { "type": "room", "room_id": 49 }
+      }
+    },
+    {
+      "id": 21,
+      "breadcrumb_building": "Supply Depot",
+      "name": "Sales Floor",
+      "description": "Corporate supply, the official store. The shelves are organized with the precision of someone who knows exactly how little they have and needs everyone else to know it too. Pricing is posted in corporate credits — high but consistent. The selection depends entirely on what came off the last shuttle. There is always less than you need. A storage bay is accessible to the east. The street entrance is west.",
+      "exits": {
+        "west": { "type": "room", "room_id": 17 },
+        "east": { "type": "room", "room_id": 22 }
+      }
+    },
+    {
+      "id": 22,
+      "breadcrumb_building": "Supply Depot",
+      "name": "Storage",
+      "description": "Floor-to-ceiling shelving packed with supply crates, each coded and catalogued. The air smells of plastic wrapping and whatever is stored in the sealed units at the back — something medical, or something that needs to be kept cold. A manifest board by the door lists incoming shipments. The last entry is six weeks old. The sales floor is back to the west.",
+      "exits": {
+        "west": { "type": "room", "room_id": 21 }
+      }
+    },
+    {
+      "id": 23,
+      "breadcrumb_building": "Corporate Administration",
+      "name": "Lobby",
+      "description": "The cleanest room in the settlement — swept floors, functioning overhead lighting, a Corporate seal on the wall that nobody has defaced. A reception desk sits unmanned most hours. Corridors branch north toward Commerce and east toward Security, and south to Records. The main street is back to the west.",
+      "exits": {
+        "west":  { "type": "room", "room_id": 18 },
+        "north": { "type": "room", "room_id": 24 },
+        "east":  { "type": "room", "room_id": 25 },
+        "south": { "type": "room", "room_id": 26 }
+      }
+    },
+    {
+      "id": 24,
+      "breadcrumb_building": "Corporate Administration",
+      "name": "Commerce Office",
+      "description": "Work permits, credit allocations, import licenses, trade route approvals. The Commerce officer handles them all with the focus of someone rationing authority. The queue is always longer than it looks. The lobby is south.",
+      "exits": {
+        "south": { "type": "room", "room_id": 23 }
+      }
+    },
+    {
+      "id": 25,
+      "breadcrumb_building": "Corporate Administration",
+      "name": "Security Office",
+      "description": "Incident reports, patrol rosters, incident classifications. The security officer's desk faces the door. A corkboard behind them holds wanted notices — some of them dated, some of them not. Communications is through the north door. The lobby is west.",
+      "exits": {
+        "west":  { "type": "room", "room_id": 23 },
+        "north": { "type": "room", "room_id": 27 }
+      }
+    },
+    {
+      "id": 26,
+      "breadcrumb_building": "Corporate Administration",
+      "name": "Records Room",
+      "description": "Filing cabinets, data terminals, and a landing roster that tracks every arrival since the Perihelion made landfall. The room smells of paper and something electric. It's one of the most secure rooms in the colony, which tells you something about what Corporate values. The lobby is north.",
+      "fixtures": [
+        {
+          "id": "landing_roster",
+          "names": ["roster", "landing roster", "manifest", "records"],
+          "category": "structural",
+          "state_lines": {
+            "default": "A large data terminal displays the Perihelion landing roster."
+          },
+          "look": "The landing roster lists every arrival from the Perihelion by name, transit number, declared skills, and assigned status. Your name is in there. So are the names of people you haven't seen since cryo.",
+          "examine": "The roster has 640 entries. Current colony population: 94 confirmed. Status of remaining 546: flagged, deceased, missing, or unknown. The column for 'missing' is the longest. Someone has added a hand-written note at the bottom: 'The numbers don't add up. They never did.'"
+        }
+      ],
+      "exits": {
+        "north": { "type": "room", "room_id": 23 }
+      }
+    },
+    {
+      "id": 27,
+      "breadcrumb_building": "Corporate Administration",
+      "name": "Communications Center",
+      "description": "Long-range comms gear, most of it running. A wall of screens shows status indicators for the relay network — some green, some amber, two dark. The technician on duty doesn't look up when you enter. Whatever they're listening to, they've been listening to it a while. Security Office is south.",
+      "exits": {
+        "south": { "type": "room", "room_id": 25 }
+      }
+    },
+    {
+      "id": 28,
+      "breadcrumb_building": "The Canteen",
+      "name": "Main Hall",
+      "description": "The colony's primary gathering space — long tables, mismatched seating, a serving counter on one wall. The smell of real coffee is the best thing about Firstfall. People eat in shifts, talk in low voices, and leave quickly. A back porch is accessible to the west. A door south opens into the settler quarter. The main street is back east.",
+      "fixtures": [
+        {
+          "id": "coffee_urn",
+          "names": ["coffee", "urn", "coffee urn"],
+          "category": "environmental",
+          "state_lines": {
+            "default": "A large coffee urn sits on the counter, steaming."
+          },
+          "look": "Real coffee — Earth-grown, pre-landing stock. Nobody knows how much is left. The urn is always running. Whoever refills it has never been identified.",
+          "examine": "The label on the urn says: MERIDIAN COLONY SUPPLY — COFFEE BLEND 3 — NOT FOR TRADE. Someone has scratched out NOT FOR TRADE and written SHARE IT."
+        },
+        {
+          "id": "canteen_notice_board",
+          "names": ["notice board", "notice", "board", "canteen board"],
+          "category": "structural",
+          "state_lines": {
+            "default": "A notice board covers most of the south wall."
+          },
+          "look": "The canteen notice board: work offers, trade requests, missing persons, warnings about the northern sector, an unsigned letter about the Corporate water allocation figures, and a hand-drawn birthday greeting that's been up for three months.",
+          "examine": "Three notices stand out. One: 'WANTED — experienced trapper or tracker, northern sector survey, hazard pay applies, ask Cho at the Engineering Bay.' Two: 'MY BROTHER WENT OUT WITH THE SURVEY TEAM 12 DAYS AGO. If you saw him, talk to me. Lira Osei, Barracks.' Three, pinned over the others with no signature: 'STOP TAKING THE WATER ALLOCATION NUMBERS AT FACE VALUE.'"
+        }
+      ],
+      "exits": {
+        "east":  { "type": "room", "room_id": 17 },
+        "west":  { "type": "room", "room_id": 29 },
+        "south": { "type": "room", "room_id": 41 }
+      }
+    },
+    {
+      "id": 29,
+      "breadcrumb_building": "The Canteen",
+      "name": "Back Porch",
+      "description": "A narrow outdoor space behind the canteen — salvaged benches, an unlit fire pit, a view of the settlement wall and the alien sky beyond. People come here to sit with whatever they need to sit with. The bottle on the bench suggests someone has been here recently and will be back.",
+      "objects": [
+        { "template_id": "earth_whiskey" }
+      ],
+      "exits": {
+        "east": { "type": "room", "room_id": 28 }
+      }
+    },
+    {
+      "id": 30,
+      "breadcrumb_building": "Engineering Bay",
+      "name": "Main Workshop",
+      "description": "Fabrication tables, tool racks, a 3D printer running a queue of parts. The air is hot and smells of metal shavings and solder. A whiteboard covers one wall with project lists, material inventories, and at least one argument about load-bearing tolerances. The forge is through the north door. Electronics bench is south. Salvage intake is west. Main street is east.",
+      "exits": {
+        "east":  { "type": "room", "room_id": 18 },
+        "north": { "type": "room", "room_id": 31 },
+        "south": { "type": "room", "room_id": 32 },
+        "west":  { "type": "room", "room_id": 33 }
+      }
+    },
+    {
+      "id": 31,
+      "breadcrumb_building": "Engineering Bay",
+      "name": "The Forge",
+      "description": "A room built around heat — a proper forge, anvil, quench tank, and the tools to use them. Someone knows what they're doing in here; the metalwork is clean and intentional. The walls are scorched in patterns that suggest the forge has been running since day one. The workshop is back to the south.",
+      "fixtures": [
+        {
+          "id": "forge",
+          "names": ["forge", "anvil", "furnace"],
+          "category": "crafting_station",
+          "state_lines": {
+            "default": "The forge burns low, banked for the night.",
+            "active": "The forge is running hot — someone is working."
+          },
+          "look": "A proper forge — not a field improvisation. Someone spec'd this correctly, sourced the firebrick, built it to last. The anvil beside it shows years of use that predates this colony.",
+          "examine": "The forge was built in the first two weeks after landing, according to the date scratched into the firebrick on the south face. Before the barracks were finished. Before the water system was stable. Someone decided this came first."
+        }
+      ],
+      "exits": {
+        "south": { "type": "room", "room_id": 30 }
+      }
+    },
+    {
+      "id": 32,
+      "breadcrumb_building": "Engineering Bay",
+      "name": "Electronics Bench",
+      "description": "Oscilloscopes, soldering stations, component bins, and a wall of salvaged circuit boards organized by someone who cares deeply about organization. A repair queue is pinned to the bench — comm units, sensors, a medical monitor, something with no label and three sticky notes arguing about what it is. Workshop is north.",
+      "exits": {
+        "north": { "type": "room", "room_id": 30 }
+      }
+    },
+    {
+      "id": 33,
+      "breadcrumb_building": "Engineering Bay",
+      "name": "Salvage Yard",
+      "description": "An outdoor intake area where recovered materials come in from salvage runs — alien debris, broken equipment, anything that might be stripped for parts. The sorting system is color-coded and ignored by everyone except the one person who built it. A worrying amount of the material here is unidentified. Workshop is east.",
+      "exits": {
+        "east": { "type": "room", "room_id": 30 }
+      }
+    },
+    {
+      "id": 34,
+      "breadcrumb_building": "Medical Facility",
+      "name": "Reception",
+      "description": "A clean, well-lit waiting area with actual upholstered chairs — the most comfortable seating in the colony, which the medical staff will tell you is entirely intentional. A triage board on the wall lists current patients by severity code. Nobody is ever entirely well here; the planet sees to that. Treatment bay is north, pharmacy east, East Gate is south, main street is west.",
+      "exits": {
+        "west":  { "type": "room", "room_id": 19 },
+        "north": { "type": "room", "room_id": 35 },
+        "east":  { "type": "room", "room_id": 47 },
+        "south": { "type": "room", "room_id": 37 }
+      }
+    },
+    {
+      "id": 35,
+      "breadcrumb_building": "Medical Facility",
+      "name": "Treatment Bay",
+      "description": "Six beds, proper medical equipment, and the smell of antiseptic. The beds are never all empty. The doctor works long hours and has the look of someone who stopped sleeping enough three months ago. A pharmacy is accessible to the east. Reception is south.",
+      "exits": {
+        "south": { "type": "room", "room_id": 34 },
+        "east":  { "type": "room", "room_id": 36 }
+      }
+    },
+    {
+      "id": 36,
+      "breadcrumb_building": "Medical Facility",
+      "name": "Pharmacy",
+      "description": "A locked dispensary with a half-full formulary and a pharmacist who counts every dose. The shelves hold both Corporate-issue medication and locally-synthesized alternatives of varying reliability. A handwritten note near the antibiotic shelf reads: 'If you think you have a symbiont exposure — come directly here. Do not wait.' Treatment bay is west.",
+      "exits": {
+        "west": { "type": "room", "room_id": 35 }
+      }
+    },
+    {
+      "id": 37,
+      "name": "East Gate",
+      "description": "The settlement's east exit — a reinforced door in the perimeter wall with a manual override. A duty log on the wall tracks who passed through and when; the recent entries are sparse. Beyond the gate, the terrain drops toward the coastal scrubland, alien and dense and very quiet. Medical facility is north. The gate opens east.",
+      "exits": {
+        "north": { "type": "room", "room_id": 34 },
+        "east":  { "type": "fixture", "zone": {"q": 1, "r": 0}, "area_id": 1, "fixture_id": "east_gate" }
+      }
+    },
+    {
+      "id": 38,
+      "breadcrumb_building": "Barracks",
+      "name": "New Arrival Wing",
+      "description": "A bunk room for recent arrivals — forty beds, most claimed, every bunk with a small personal space that people have tried to make mean something. A photograph lies face-down on one of the empty bunks. Someone will come back for it, or they won't. Common room is north, West Gate is west, main street is east.",
+      "objects": [
+        { "template_id": "personal_photograph" }
+      ],
+      "exits": {
+        "east":  { "type": "room", "room_id": 19 },
+        "north": { "type": "room", "room_id": 39 },
+        "west":  { "type": "room", "room_id": 40 }
+      }
+    },
+    {
+      "id": 39,
+      "breadcrumb_building": "Barracks",
+      "name": "Common Room",
+      "description": "A shared space with card tables, a few books, a data terminal that runs the colony news feed, and a coffee maker that nobody takes responsibility for cleaning. People gather here in off-hours. The conversation tends toward the practical: resource counts, personnel changes, which areas outside the wall are safe this week. The bunk room is south.",
+      "objects": [
+        { "template_id": "old_paperback" }
+      ],
+      "exits": {
+        "south": { "type": "room", "room_id": 38 }
+      }
+    },
+    {
+      "id": 40,
+      "name": "West Gate",
+      "description": "The settlement's west exit — wider than the others, built to allow equipment passage. The frame shows scoring marks from the planet's weather events, which are more frequent than the pre-mission briefings suggested. Beyond the gate, the land rises toward the continental interior — dark mineral formations, alien growth patterns, a horizon that makes the distance feel wrong. Barracks is east, wall walk above to the north, gate opens west.",
+      "exits": {
+        "east":  { "type": "room", "room_id": 38 },
+        "west":  { "type": "fixture", "zone": {"q": -1, "r": 1}, "area_id": 1, "fixture_id": "west_gate" },
+        "north": { "type": "room", "room_id": 49 }
+      }
+    },
+    {
+      "id": 41,
+      "breadcrumb_building": "Settler Quarter",
+      "name": "Main Street",
+      "description": "The settler section of town feels different — quieter, more considered, built by people who intend to stay. The construction is rougher but more personal than the Corporate prefabs to the north. A meeting house is west, an unofficial market runs east, the wall garden is south. The canteen is back to the north.",
+      "exits": {
+        "north": { "type": "room", "room_id": 28 },
+        "west":  { "type": "room", "room_id": 42 },
+        "east":  { "type": "room", "room_id": 43 },
+        "south": { "type": "room", "room_id": 44 }
+      }
+    },
+    {
+      "id": 42,
+      "breadcrumb_building": "Settler Quarter",
+      "name": "Meeting House",
+      "description": "A circular room with benches around the walls, hand-built from local timber. Marks on the floor suggest regular gatherings. A noticeboard is covered in small papers — requests, offers, personal messages, arguments conducted in writing. The atmosphere is conspicuously separate from Corporate. Main street is east.",
+      "exits": {
+        "east": { "type": "room", "room_id": 41 }
+      }
+    },
+    {
+      "id": 43,
+      "breadcrumb_building": "Settler Quarter",
+      "name": "Unofficial Market",
+      "description": "A row of stalls and folding tables operating outside Corporate commerce channels. The goods are salvaged, grown, made, or traded — none of it catalogued in the official ledger. The vendors don't make eye contact with strangers until they decide whether you're Corporate or not. Once they decide, the interaction changes accordingly. The Orthodox meeting hall is further east. Main street is west.",
+      "exits": {
+        "west": { "type": "room", "room_id": 41 },
+        "east": { "type": "room", "room_id": 45 }
+      }
+    },
+    {
+      "id": 44,
+      "breadcrumb_building": "Settler Quarter",
+      "name": "Wall Garden",
+      "description": "A cultivated space against the inner face of the settlement wall — planters, climbing frames, soil that has been worked and amended by hand. Something is growing here that isn't from Earth. It looks intentional. The gardener, whoever they are, is thorough. Settler quarter is north.",
+      "fixtures": [
+        {
+          "id": "wall_garden",
+          "names": ["garden", "wall garden", "plants", "planters"],
+          "category": "environmental",
+          "state_lines": {
+            "default": "Cultivated planters line the inner settlement wall, something green and alien growing between the familiar."
+          },
+          "look": "Rows of planters — some Earth-stock, some not. The non-Earth specimens have been carefully labeled in a hand that belongs to someone with botanical training. The labels are in Latin, then a second name in a script that doesn't match any Earth language.",
+          "examine": "The alien specimens are tagged with care: growth rates, soil conditions, water requirements. A third column is marked 'INTERACTION' — the entries there are brief and careful. One reads: 'responds to sustained proximity.' Another: 'do not touch after dark.'"
+        }
+      ],
+      "exits": {
+        "north": { "type": "room", "room_id": 41 }
+      }
+    },
+    {
+      "id": 45,
+      "breadcrumb_building": "The Orthodox Gathering",
+      "name": "The Threshold",
+      "description": "The entrance to the Orthodox Gathering space — a doorway marked with symbols that predate this colony, some of them very old. The room functions as both lobby and boundary. There is a quality to the air here that is distinct from the rest of Firstfall. The market is west. The hall is north.",
+      "exits": {
+        "west":  { "type": "room", "room_id": 43 },
+        "north": { "type": "room", "room_id": 46 }
+      }
+    },
+    {
+      "id": 46,
+      "breadcrumb_building": "The Orthodox Gathering",
+      "name": "The Hall",
+      "description": "A gathering space used for services, meditation, and something the Orthodox call the Witness — a practice of sustained, silent attention directed toward The Eye. The devotional focus stands at the center. The space is quiet in a way that feels maintained rather than accidental. The threshold is south.",
+      "fixtures": [
+        {
+          "id": "devotional_focus",
+          "names": ["focus", "devotional focus", "altar", "shrine"],
+          "category": "coherence",
+          "state_lines": {
+            "default": "A simple focal point — no iconography, just a clear surface and the direction it points."
+          },
+          "look": "The devotional focus is oriented toward The Eye — not the cardinal directions, not the settlement, but toward the thing on the horizon. The Orthodox don't worship it. They pay attention to it. They say the distinction matters.",
+          "examine": "Up close: the surface of the focal point has been marked by many hands, small impressions worn smooth. Not damage — touch. Repeated, deliberate touch from people who wanted to leave something here, or take something away. There is no inscription. There doesn't need to be."
+        }
+      ],
+      "exits": {
+        "south": { "type": "room", "room_id": 45 }
+      }
+    },
+    {
+      "id": 47,
+      "breadcrumb_building": "Research Station",
+      "name": "Main Lab",
+      "description": "The colony's science facility — sample storage, analysis equipment, a genetic sequencer that's been running continuously since landing. The walls are covered in annotated maps, specimen photographs, and handwritten hypotheses. The researchers here are the most frightened people in Firstfall, which they hide behind rigor. The roof access is up. Medical facility is west.",
+      "exits": {
+        "west": { "type": "room", "room_id": 34 },
+        "up":   { "type": "room", "room_id": 48 }
+      }
+    },
+    {
+      "id": 48,
+      "breadcrumb_building": "Research Station",
+      "name": "The Roof",
+      "description": "The highest point in Firstfall accessible to civilians — a flat roof with a sensor array, a weather station, and an unobstructed view in every direction. To the north: the debris field. To the east: the coastal scrubland, the crater bay, the distant shape of the Perihelion on the dock. To the south: open alien landscape. And there, to the west, on the horizon — The Eye. Always there. Always the same. Lab is below.",
+      "exits": {
+        "down": { "type": "room", "room_id": 47 }
+      }
+    },
+    {
+      "id": 49,
+      "breadcrumb_building": "Wall Walk",
+      "name": "Northwest Section",
+      "description": "The top of the settlement wall — a walkway built for patrol, now used mostly for the view and the wind. The alien sky stretches without limit above the perimeter. North Gate is to the east, West Gate below to the south. The settlement spreads out below — small and purposeful and insufficient for the scale of what surrounds it.",
+      "exits": {
+        "east":  { "type": "room", "room_id": 20 },
+        "south": { "type": "room", "room_id": 40 }
+      }
+    }
+  ]
+}

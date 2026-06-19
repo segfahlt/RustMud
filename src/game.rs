@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use crate::commands::{help_text, Command};
+use crate::commands::{help_text, Command, OHelpQuery};
+use crate::world::object::{Bulk, Material, ObjectCategory, ObjectFlag, ObjectTemplate, Weight};
+use crate::world::AreaRef;
 use crate::mob::{MobCore, Player};
 use crate::persist::CharacterSave;
-use crate::world::{Area, AreaRef, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
+use crate::world::{Area, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
 
 pub struct GameState {
     pub world:   World,
@@ -42,16 +44,13 @@ impl GameState {
     }
 }
 
-/// Area mode (outdoor): only hex directions. Room mode: all 10 directions.
+/// Area mode (outdoor): all horizontal directions valid; Up/Down are vertical and don't apply.
+/// Room mode: all 10 directions.
 fn is_valid_direction(dir: Direction, in_area: bool) -> bool {
     if !in_area {
-        return true; // Rooms allow all 10 directions
+        return true;
     }
-    matches!(dir,
-        Direction::North | Direction::South |
-        Direction::NorthEast | Direction::NorthWest |
-        Direction::SouthEast | Direction::SouthWest
-    )
+    !matches!(dir, Direction::Up | Direction::Down)
 }
 
 // Returns (output_text, keep_playing).
@@ -67,6 +66,7 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Inventory       => (cmd_inventory(client_id, state), true),
         Command::WorldMap        => (state.world.world_map.render(), true),
         Command::Help(topic)     => (help_text(topic.as_deref()), true),
+        Command::OHelp(query)    => (cmd_ohelp(&query, state), true),
         Command::Quit            => ("Farewell.\n".to_string(), false),
         // Admin commands are intercepted in the connection layer before reaching here.
         Command::Shutdown | Command::Reboot | Command::RebootRefresh | Command::Teleport(_) =>
@@ -112,21 +112,18 @@ fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegi
     let header = format!("{{Y}}[ {} > {} ]{{/}}", zone_name, area.name);
     let mut out = format!("{}\n{}", header, area.description);
 
-    let mut extras = Vec::new();
-    for fixture in &area.fixtures {
-        let line = fixture.state_line();
-        if !line.is_empty() {
-            extras.push(line.to_string());
-        }
-    }
+    let mut extras: Vec<&str> = Vec::new();
     for obj in &area.objects {
-        extras.push(obj.room_look(registry).to_string());
+        let line = obj.visible_line(registry);
+        if !line.is_empty() {
+            extras.push(line);
+        }
     }
     if !extras.is_empty() {
         out.push('\n');
         for line in extras {
             out.push('\n');
-            out.push_str(&line);
+            out.push_str(line);
         }
     }
 
@@ -198,10 +195,8 @@ fn go_direction(dir: Direction, client_id: u32, state: &mut GameState) -> String
                 return describe_location(client_id, state);
             }
 
-            // No area exit — auto-enter any gateway fixture in this area.
-            let gateway_room = state.world
-                .get_area(area_ref)
-                .and_then(|area| area.fixtures.iter().find_map(|f| f.connects_to_room));
+            // No area exit — auto-enter a gateway fixture that accepts this direction.
+            let gateway_room = state.world.find_gateway(area_ref, dir);
             if let Some(room_id) = gateway_room {
                 let p = state.players.get_mut(&client_id).unwrap();
                 p.last_area = Some(loc);
@@ -250,10 +245,8 @@ fn enter_fixture(dir: Direction, client_id: u32, state: &mut GameState) -> Strin
         return "You can't go that way.\n".to_string();
     }
 
-    // Find a gateway fixture (explicit enter, even when an area exit also exists in this dir).
-    let gateway_room = state.world
-        .get_area(area_ref)
-        .and_then(|area| area.fixtures.iter().find_map(|f| f.connects_to_room));
+    // Find a gateway fixture matching this direction.
+    let gateway_room = state.world.find_gateway(area_ref, dir);
 
     match gateway_room {
         Some(room_id) => {
@@ -272,27 +265,24 @@ fn cmd_examine(target: &str, client_id: u32, state: &GameState) -> String {
         None    => return String::new(),
     };
 
-    let (fixtures, objects) = match loc {
+    let registry = &state.world.object_registry;
+
+    let objects: &[ObjectInstance] = match loc {
         PlayerLocation::Area { zone_q, zone_r, area_id } => {
             let area_ref = AreaRef { zone: HexCoord::new(zone_q, zone_r), area_id };
             match state.world.get_area(area_ref) {
-                Some(a) => (a.fixtures.as_slice(), a.objects.as_slice()),
+                Some(a) => a.objects.as_slice(),
                 None    => return "(You are nowhere.)\n".to_string(),
             }
         }
         PlayerLocation::Room { room_id } => {
             match state.world.get_room(room_id) {
-                Some(r) => (r.fixtures.as_slice(), r.objects.as_slice()),
+                Some(r) => r.objects.as_slice(),
                 None    => return "(You are nowhere.)\n".to_string(),
             }
         }
     };
 
-    if let Some(fixture) = fixtures.iter().find(|f| f.matches_name(target)) {
-        return format!("{}\n", fixture.examine);
-    }
-
-    let registry = &state.world.object_registry;
     if let Some(obj) = objects.iter().find(|o| {
         registry.get(&o.template_id).map(|t| t.matches_name(target)).unwrap_or(false)
     }) {
@@ -343,6 +333,15 @@ fn cmd_get(target: &str, client_id: u32, state: &mut GameState) -> String {
             })
         }
     };
+
+    // Fixture-category objects are fixed in place and cannot be picked up.
+    if let Some((_, ref obj, _)) = result {
+        if let Some(tmpl) = state.world.object_registry.get(&obj.template_id) {
+            if tmpl.category.is_fixture() {
+                return format!("You can't pick that up.\n");
+            }
+        }
+    }
 
     match result {
         None => format!("You don't see any '{}' here.\n", target),
@@ -444,14 +443,207 @@ fn cmd_inventory(client_id: u32, state: &GameState) -> String {
     out
 }
 
+fn cmd_ohelp(query: &OHelpQuery, state: &GameState) -> String {
+    match query {
+        OHelpQuery::Overview => ohelp_overview(),
+        OHelpQuery::List     => ohelp_list(state),
+        OHelpQuery::Search(text) => ohelp_search(text, state),
+        OHelpQuery::Desc(text)   => ohelp_desc(text, state),
+    }
+}
+
+fn ohelp_overview() -> String {
+    "\
+{Y}Object Reference  (ohelp){/}
+
+  ohelp -list             list all registered objects
+  ohelp <name>            search by name (partial match)
+  ohelp -desc <text>      search descriptions
+  ohelp <object_id>       full detail for a specific object\n"
+        .to_string()
+}
+
+fn ohelp_list(state: &GameState) -> String {
+    let reg = &state.world.object_registry;
+    if reg.is_empty() {
+        return "No objects are registered.\n".to_string();
+    }
+    let mut templates: Vec<&ObjectTemplate> = reg.values().collect();
+    templates.sort_by_key(|t| t.id.as_str());
+
+    let mut out = format!("{{Y}}Object Registry{{/}} — {} object{}\n\n", templates.len(),
+        if templates.len() == 1 { "" } else { "s" });
+    for t in &templates {
+        out.push_str(&format!(
+            "  {{c}}{:<26}{{/}} {:<38}  {}/{}\n",
+            t.id, t.short,
+            obj_category_label(&t.category),
+            obj_material_label(&t.material),
+        ));
+    }
+    out
+}
+
+fn ohelp_search(text: &str, state: &GameState) -> String {
+    let reg = &state.world.object_registry;
+
+    // Exact id match → full detail.
+    if let Some(t) = reg.get(text) {
+        return ohelp_detail(t);
+    }
+
+    // Substring match on any name.
+    let mut matches: Vec<&ObjectTemplate> = reg.values()
+        .filter(|t| t.names.iter().any(|n| n.contains(text)))
+        .collect();
+
+    if matches.is_empty() {
+        return format!("No objects match '{}'.\n", text);
+    }
+    matches.sort_by_key(|t| t.id.as_str());
+
+    let mut out = format!("{{Y}}Objects matching '{}'{{/}} — {} found\n\n", text, matches.len());
+    for t in &matches {
+        out.push_str(&format!(
+            "  {{c}}{:<26}{{/}} {:<38}  {}/{}\n",
+            t.id, t.short,
+            obj_category_label(&t.category),
+            obj_material_label(&t.material),
+        ));
+    }
+    out
+}
+
+fn ohelp_desc(text: &str, state: &GameState) -> String {
+    let reg = &state.world.object_registry;
+    let mut matches: Vec<&ObjectTemplate> = reg.values()
+        .filter(|t| t.description.contains(text))
+        .collect();
+
+    if matches.is_empty() {
+        return format!("No object descriptions contain '{}'.\n", text);
+    }
+    matches.sort_by_key(|t| t.id.as_str());
+
+    let mut out = format!(
+        "{{Y}}Objects with description matching '{}'{{/}} — {} found\n\n",
+        text, matches.len()
+    );
+    for t in &matches {
+        out.push_str(&format!(
+            "  {{c}}{:<26}{{/}} {}\n",
+            t.id, t.short,
+        ));
+    }
+    out
+}
+
+fn ohelp_detail(t: &ObjectTemplate) -> String {
+    let flags: Vec<&str> = t.flags.iter().map(obj_flag_label).collect();
+    let flags_str = if flags.is_empty() { "none".to_string() } else { flags.join(", ") };
+    let names_str = t.names.join(", ");
+
+    format!(
+        "{{Y}}{id}{{/}}  [{{c}}{cat}{{/}}]\n\n  Names:     {names}\n  Short:     {short}\n  Weight:    {wt:<10}  Bulk: {bulk:<10}  Material: {mat}\n  Value:     {val}\n  Flags:     {flags}\n\n  {desc}\n",
+        id   = t.id,
+        cat  = obj_category_label(&t.category),
+        names = names_str,
+        short = t.short,
+        wt   = obj_weight_label(&t.weight),
+        bulk = obj_bulk_label(&t.bulk),
+        mat  = obj_material_label(&t.material),
+        val  = t.value,
+        flags = flags_str,
+        desc = t.description,
+    )
+}
+
+fn obj_category_label(c: &ObjectCategory) -> &'static str {
+    match c {
+        ObjectCategory::Weapon       => "weapon",
+        ObjectCategory::Armor        => "armor",
+        ObjectCategory::Tool         => "tool",
+        ObjectCategory::Consumable   => "consumable",
+        ObjectCategory::Component    => "component",
+        ObjectCategory::Container    => "container",
+        ObjectCategory::Data         => "data",
+        ObjectCategory::Currency     => "currency",
+        ObjectCategory::TradeGood    => "trade_good",
+        ObjectCategory::Quest        => "quest",
+        ObjectCategory::Bonded       => "bonded",
+        ObjectCategory::Structural      => "structural",
+        ObjectCategory::CraftingStation => "crafting_station",
+        ObjectCategory::Environmental   => "environmental",
+        ObjectCategory::Toggle          => "toggle",
+        ObjectCategory::Commerce        => "commerce",
+        ObjectCategory::Coherence       => "coherence",
+    }
+}
+
+fn obj_weight_label(w: &Weight) -> &'static str {
+    match w {
+        Weight::Tiny   => "tiny",
+        Weight::Light  => "light",
+        Weight::Medium => "medium",
+        Weight::Heavy  => "heavy",
+    }
+}
+
+fn obj_bulk_label(b: &Bulk) -> &'static str {
+    match b {
+        Bulk::Tiny   => "tiny",
+        Bulk::Small  => "small",
+        Bulk::Medium => "medium",
+        Bulk::Large  => "large",
+        Bulk::Huge   => "huge",
+    }
+}
+
+fn obj_material_label(m: &Material) -> &'static str {
+    match m {
+        Material::Metal        => "metal",
+        Material::Composite    => "composite",
+        Material::Fabric       => "fabric",
+        Material::Organic      => "organic",
+        Material::AlienOrganic => "alien_organic",
+        Material::Electronic   => "electronic",
+        Material::Paper        => "paper",
+        Material::Ceramic      => "ceramic",
+        Material::Crystal      => "crystal",
+        Material::Unknown      => "unknown",
+    }
+}
+
+fn obj_flag_label(f: &ObjectFlag) -> &'static str {
+    match f {
+        ObjectFlag::NoDrop        => "NO_DROP",
+        ObjectFlag::NoSell        => "NO_SELL",
+        ObjectFlag::NoGive        => "NO_GIVE",
+        ObjectFlag::NoTrade       => "NO_TRADE",
+        ObjectFlag::Bonded        => "BONDED",
+        ObjectFlag::EarthOrigin   => "EARTH_ORIGIN",
+        ObjectFlag::CorporateIssue => "CORPORATE_ISSUE",
+        ObjectFlag::SettlerMade   => "SETTLER_MADE",
+        ObjectFlag::AlienMade     => "ALIEN_MADE",
+        ObjectFlag::Salvaged      => "SALVAGED",
+        ObjectFlag::Stackable     => "STACKABLE",
+        ObjectFlag::TwoHanded     => "TWO_HANDED",
+        ObjectFlag::LightSource   => "LIGHT_SOURCE",
+        ObjectFlag::Perishable    => "PERISHABLE",
+        ObjectFlag::Restricted    => "RESTRICTED",
+        ObjectFlag::Hidden        => "HIDDEN",
+        ObjectFlag::Quest         => "QUEST",
+    }
+}
+
 // --- Tests ---
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::{Area, AreaRef, Fixture, HexCoord, Room, World, Zone};
-    use crate::world::fixture::{FixtureCategory, FixturePermanence, FixtureState};
+    use crate::world::{Area, AreaRef, HexCoord, Room, World, Zone};
     use crate::world::hex::{ExitDestination, FixtureRef};
+    use crate::world::object::{ObjectCategory, ObjectTemplate};
     use std::collections::HashMap;
 
     const CLIENT: u32 = 0;
@@ -461,26 +653,33 @@ mod tests {
         PlayerLocation::area(HexCoord::new(0, 0), 1)
     }
 
-    fn gateway_fixture() -> Fixture {
-        Fixture {
-            id:               "gate".to_string(),
-            names:            vec!["gate".to_string()],
-            category:         FixtureCategory::Structural,
-            state_lines:      HashMap::new(),
-            look:             String::new(),
-            examine:          String::new(),
-            read:             None,
-            state:            FixtureState::default(),
-            persist_state:    false,
-            coherence_driven: false,
-            permanence:       FixturePermanence::Permanent,
-            minimum_stage:    None,
-            connects_to_room: Some(ROOM_ID),
-        }
-    }
-
     fn make_state() -> GameState {
         let mut world = World::new();
+
+        // Register a gateway fixture template and spawn an instance into area 2.
+        let gate_tmpl = ObjectTemplate {
+            id:           "gate".to_string(),
+            names:        vec!["gate".to_string()],
+            short:        String::new(),
+            room_look:    String::new(),
+            description:  String::new(),
+            read:         None,
+            category:     ObjectCategory::Structural,
+            weight:       Default::default(),
+            bulk:         Default::default(),
+            material:     Default::default(),
+            flags:        vec![],
+            value:        0,
+            state_lines:      None,
+            permanence:       None,
+            minimum_stage:    None,
+            connects_to_room: Some(ROOM_ID),
+            direction:        None,
+            coherence_driven: false,
+            persist_state:    false,
+        };
+        world.object_registry.insert("gate".to_string(), gate_tmpl);
+
         let mut zone = Zone::new(HexCoord::new(0, 0), "Test Zone", "");
         zone.add_area(Area {
             id: 1,
@@ -498,7 +697,7 @@ mod tests {
             exits: HashMap::from([
                 (Direction::South, AreaRef { zone: HexCoord::new(0, 0), area_id: 1 }),
             ]),
-            fixtures: vec![gateway_fixture()],
+            objects: vec![ObjectInstance::new("gate")],
             ..Area::default()
         });
         world.add_zone(zone);
@@ -517,8 +716,7 @@ mod tests {
                     fixture_id: "gate".to_string(),
                 })),
             ]),
-            fixtures: vec![],
-            objects:  vec![],
+            objects: vec![],
         });
 
         let mut state = GameState::new(world);
@@ -585,7 +783,8 @@ mod tests {
     // --- direction restriction in area mode ---
 
     #[test]
-    fn area_mode_rejects_east() {
+    fn area_mode_east_fails_without_exit() {
+        // East is a valid area direction but area 1 has no east exit — should still fail gracefully.
         let mut state = make_state();
         let (out, _) = execute(Command::Go(Direction::East), CLIENT, &mut state);
         assert!(out.contains("can't go"), "expected can't go, got: {out}");

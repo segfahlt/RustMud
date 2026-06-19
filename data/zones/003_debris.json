@@ -6,17 +6,24 @@
   "areas": [
     {
       "id": 1,
-      "name": "Debris Field \u2014 Threshold",
-      "description": "Just outside the North Gate, where the packed-dirt of Firstfall's immediate perimeter gives way to open terrain. The ground here is darker than it should be \u2014 impact-fused minerals threaded through the native soil. Chunks of dense rock protrude at odd angles, older than the colony by fifty thousand years. Firstfall's North Gate is visible to the south. The debris field stretches north.",
-      "exits": {
-        "south": {
-          "zone": {
-            "q": 0,
-            "r": 0
+      "name": "Debris Field — Threshold",
+      "description": "Just outside the North Gate, where the packed-dirt of Firstfall's immediate perimeter gives way to open terrain. The ground here is darker than it should be — impact-fused minerals threaded through the native soil. Chunks of dense rock protrude at odd angles, older than the colony by fifty thousand years. Firstfall's North Gate is visible to the south. The debris field stretches north.",
+      "fixtures": [
+        {
+          "id": "north_gate",
+          "names": ["gate", "north gate", "settlement gate"],
+          "category": "structural",
+          "state_lines": {
+            "default": "The North Gate of Firstfall stands to the south, gate frame amber in the alien light."
           },
-          "area_id": 11
+          "look": "A reinforced gate set into the settlement perimeter wall. Manual mechanism, built to stay closed if power fails.",
+          "examine": "The gate frame carries resource runner team assignments on a board bolted to the exterior. Most are crossed off. The ones that aren't have dates next to them — all of them more than a week ago.",
+          "permanence": "permanent",
+          "connects_to_room": 20,
+          "direction": "south"
         }
-      }
+      ],
+      "exits": {}
     }
   ]
 }

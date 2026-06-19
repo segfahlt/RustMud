@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use super::fixture::Fixture;
 use super::hex::{AreaRef, EvolutionStage};
 use super::object::{ObjectInstance, ObjectRegistry};
 use super::room::Direction;
@@ -13,7 +12,6 @@ pub struct Area {
     pub name:        String,
     pub description: String,
     pub exits:       HashMap<Direction, AreaRef>,
-    pub fixtures:    Vec<Fixture>,
     pub objects:     Vec<ObjectInstance>,
 
     // --- Evolution tracking ---
@@ -44,21 +42,18 @@ impl Area {
 
         let mut out = format!("[ {} ]\n{}", self.name, self.description);
 
-        let mut extras = Vec::new();
-        for fixture in &self.fixtures {
-            let line = fixture.state_line();
-            if !line.is_empty() {
-                extras.push(line.to_string());
-            }
-        }
+        let mut extras: Vec<&str> = Vec::new();
         for obj in &self.objects {
-            extras.push(obj.room_look(registry).to_string());
+            let line = obj.visible_line(registry);
+            if !line.is_empty() {
+                extras.push(line);
+            }
         }
         if !extras.is_empty() {
             out.push('\n');
             for line in extras {
                 out.push('\n');
-                out.push_str(&line);
+                out.push_str(line);
             }
         }
 

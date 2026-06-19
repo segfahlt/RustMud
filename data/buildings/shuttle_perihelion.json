@@ -11,7 +11,7 @@
       "room_look": "A folded transit manifest lies on the floor.",
       "description": "A printed form from the Perihelion — passenger manifest, cargo declaration, customs disclosure. Your name is in here somewhere, among six hundred and forty. The date at the top predates landing by six months. It already feels like another century.",
       "category": "data",
-      "weight": "tiny",
+      "weight": "tiny", "bulk": "tiny", "material": "paper",
       "flags": ["EARTH_ORIGIN"],
       "value": 0
     }
@@ -52,7 +52,7 @@
       "description": "The ramp angles down from the shuttle hatch to the dock below. Through the open hatch, you see it for the first time — a sky the wrong shade of violet, lit from an angle that doesn't match any sunrise you grew up with. And there, low on the horizon, a darkness ringed with white fire. The briefings didn't prepare you for the scale of it. It watches. The ship's pressurized interior is back through the hatch to the north.",
       "exits": {
         "north": { "type": "room", "room_id": 3 },
-        "south": { "type": "fixture", "zone": {"q": 0, "r": 1}, "area_id": 5, "fixture_id": "shuttle_hatch" }
+        "south": { "type": "room", "room_id": 5 }
       }
     }
   ]

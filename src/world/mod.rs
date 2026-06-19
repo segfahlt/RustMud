@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub mod area;
-pub mod fixture;
 pub mod hex;
 pub mod loader;
 pub mod object;
@@ -11,11 +10,10 @@ pub mod worldmap;
 pub mod zone;
 
 pub use area::Area;
-pub use fixture::Fixture;
 pub use hex::{
     AreaRef, EvolutionStage, ExitDestination, FixtureRef, HexCoord, PlayerLocation,
 };
-pub use object::{ObjectInstance, ObjectRegistry, ObjectTemplate};
+pub use object::{FixturePermanence, ObjectInstance, ObjectRegistry, ObjectTemplate};
 pub use room::{Direction, Room};
 pub use worldmap::WorldMap;
 pub use zone::Zone;
@@ -103,6 +101,23 @@ impl World {
 
     // --- Validation ---
 
+    /// Finds a gateway object in the given area that connects to a room via `dir`.
+    /// A gateway object has `connects_to_room` set on its template.
+    /// If its `direction` field is set, it only triggers for that direction.
+    pub fn find_gateway(&self, area_ref: AreaRef, dir: Direction) -> Option<u32> {
+        let area = self.get_area(area_ref)?;
+        for obj in &area.objects {
+            let tmpl = self.object_registry.get(&obj.template_id)?;
+            let room_id = tmpl.connects_to_room?;
+            let fixture_dir = tmpl.direction.as_deref()
+                .and_then(|d| d.parse::<Direction>().ok());
+            if fixture_dir.is_none() || fixture_dir == Some(dir) {
+                return Some(room_id);
+            }
+        }
+        None
+    }
+
     // Checks that all Area exits point to existing Areas,
     // and all Room exits point to existing Rooms or valid FixtureRefs.
     pub fn validate(&self) -> Vec<String> {
@@ -140,7 +155,7 @@ impl World {
                     ExitDestination::Fixture(fixture_ref) => {
                         let area_ref = AreaRef { zone: fixture_ref.zone, area_id: fixture_ref.area_id };
                         if let Some(area) = self.get_area(area_ref) {
-                            if !area.fixtures.iter().any(|f| f.id == fixture_ref.fixture_id) {
+                            if !area.objects.iter().any(|o| o.template_id == fixture_ref.fixture_id) {
                                 errors.push(format!(
                                     "Room {} exit {:?}: fixture '{}' not found in area ({},{}) id={}",
                                     room_id, dir, fixture_ref.fixture_id,
