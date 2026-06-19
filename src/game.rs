@@ -65,6 +65,9 @@ pub fn execute(cmd: Command, client_id: u32, state: &mut GameState) -> (String, 
         Command::Get(target)     => (cmd_get(&target, client_id, state), true),
         Command::Drop(target)    => (cmd_drop(&target, client_id, state), true),
         Command::Read(target)    => (cmd_read(&target, client_id, state), true),
+        Command::Eat(target)     => (cmd_consume(&target, client_id, state), true),
+        Command::Drink(target)   => (cmd_consume(&target, client_id, state), true),
+        Command::UseItem(target) => (cmd_consume(&target, client_id, state), true),
         Command::Wield(target)   => (cmd_wield(&target, client_id, state), true),
         Command::Wear(target)    => (cmd_wear(&target, client_id, state), true),
         Command::Remove(target)  => (cmd_remove(&target, client_id, state), true),
@@ -343,6 +346,43 @@ fn cmd_read(target: &str, client_id: u32, state: &GameState) -> String {
                 None => format!("There's nothing to read on {}.\n", t.short),
             }
         }
+    }
+}
+
+fn cmd_consume(target: &str, client_id: u32, state: &mut GameState) -> String {
+    let registry = &state.world.object_registry;
+    let player = match state.players.get(&client_id) {
+        Some(p) => p,
+        None    => return String::new(),
+    };
+
+    let found = player.inventory.iter().enumerate().find_map(|(idx, obj)| {
+        registry.get(&obj.template_id).and_then(|tmpl| {
+            if tmpl.matches_name(target) { Some((idx, tmpl.clone())) } else { None }
+        })
+    });
+
+    let (idx, tmpl) = match found {
+        None => return format!("You aren't carrying any '{}'.\n", target),
+        Some(x) => x,
+    };
+
+    if !matches!(tmpl.category, ObjectCategory::Consumable) {
+        return format!("You can't consume {}.\n", tmpl.short);
+    }
+
+    // Remove from inventory before mutating health (single-borrow window).
+    state.players.get_mut(&client_id).unwrap().inventory.remove(idx);
+
+    let heal = tmpl.health_restore;
+    if heal > 0 {
+        let player = state.players.get_mut(&client_id).unwrap();
+        player.core.health = (player.core.health + heal).min(player.core.max_health);
+    }
+
+    match tmpl.consume_message {
+        Some(msg) => format!("{}\n", msg),
+        None      => format!("You consume {}.\n", tmpl.short),
     }
 }
 
@@ -834,7 +874,9 @@ mod tests {
             material:     Default::default(),
             flags:        vec![],
             value:        0,
-            equip_slot:   None,
+            equip_slot:       None,
+            health_restore:   0,
+            consume_message:  None,
             state_lines:      None,
             permanence:       None,
             minimum_stage:    None,
@@ -998,7 +1040,8 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            equip_slot: None, coherence_driven: false, persist_state: false,
+            equip_slot: None, health_restore: 0, consume_message: None,
+            coherence_driven: false, persist_state: false,
         });
 
         // A Data item with no read field — falls back to description.
@@ -1014,7 +1057,8 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            equip_slot: None, coherence_driven: false, persist_state: false,
+            equip_slot: None, health_restore: 0, consume_message: None,
+            coherence_driven: false, persist_state: false,
         });
 
         // A non-Data item with no read field.
@@ -1030,7 +1074,8 @@ mod tests {
             material: Default::default(), flags: vec![], value: 0,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None,
-            equip_slot: None, coherence_driven: false, persist_state: false,
+            equip_slot: None, health_restore: 0, consume_message: None,
+            coherence_driven: false, persist_state: false,
         });
 
         state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("note"));
@@ -1079,7 +1124,7 @@ mod tests {
             description: "A sturdy hunting knife.".to_string(), read: None,
             category: ObjectCategory::Weapon,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 10, equip_slot: None,
+            flags: vec![], value: 10, equip_slot: None, health_restore: 0, consume_message: None,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1089,7 +1134,7 @@ mod tests {
             description: "A Corporate-issue stun baton.".to_string(), read: None,
             category: ObjectCategory::Weapon,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 30, equip_slot: None,
+            flags: vec![], value: 30, equip_slot: None, health_restore: 0, consume_message: None,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1099,7 +1144,7 @@ mod tests {
             description: "Standard Corporate body armor.".to_string(), read: None,
             category: ObjectCategory::Armor,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 50, equip_slot: Some(EquipSlot::Body),
+            flags: vec![], value: 50, equip_slot: Some(EquipSlot::Body), health_restore: 0, consume_message: None,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1109,7 +1154,7 @@ mod tests {
             description: "Worn leather work gloves.".to_string(), read: None,
             category: ObjectCategory::Armor,
             weight: Default::default(), bulk: Default::default(), material: Default::default(),
-            flags: vec![], value: 5, equip_slot: Some(EquipSlot::Hands),
+            flags: vec![], value: 5, equip_slot: Some(EquipSlot::Hands), health_restore: 0, consume_message: None,
             state_lines: None, permanence: None, minimum_stage: None,
             connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
         });
@@ -1197,6 +1242,93 @@ mod tests {
         let (out, _) = execute(Command::Equipment, CLIENT, &mut state);
         assert!(out.contains("main hand"), "got: {out}");
         assert!(out.contains("hunting knife"), "got: {out}");
+    }
+
+    // --- consume (eat / drink / use) ---
+
+    fn make_state_with_consumables() -> GameState {
+        let mut state = make_state();
+
+        state.world.object_registry.insert("ration".to_string(), ObjectTemplate {
+            id: "ration".to_string(), names: vec!["ration".to_string(), "ration bar".to_string()],
+            short: "a ration bar".to_string(), room_look: String::new(),
+            description: "A compressed food block.".to_string(), read: None,
+            category: ObjectCategory::Consumable,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 5,
+            equip_slot: None, health_restore: 20, consume_message: None,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        state.world.object_registry.insert("stimpak".to_string(), ObjectTemplate {
+            id: "stimpak".to_string(), names: vec!["stimpak".to_string()],
+            short: "a stimpak".to_string(), room_look: String::new(),
+            description: "An auto-injector loaded with coagulant and stimulant compounds.".to_string(),
+            read: None, category: ObjectCategory::Consumable,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 40,
+            equip_slot: None, health_restore: 50,
+            consume_message: Some("The injector fires. Warmth spreads through your arm.".to_string()),
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+        state.world.object_registry.insert("rock".to_string(), ObjectTemplate {
+            id: "rock".to_string(), names: vec!["rock".to_string()],
+            short: "a rock".to_string(), room_look: String::new(),
+            description: "A grey rock.".to_string(), read: None,
+            category: ObjectCategory::Component,
+            weight: Default::default(), bulk: Default::default(), material: Default::default(),
+            flags: vec![], value: 0,
+            equip_slot: None, health_restore: 0, consume_message: None,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None, coherence_driven: false, persist_state: false,
+        });
+
+        let inv = &mut state.players.get_mut(&CLIENT).unwrap().inventory;
+        inv.push(ObjectInstance::new("ration"));
+        inv.push(ObjectInstance::new("stimpak"));
+        inv.push(ObjectInstance::new("rock"));
+        state
+    }
+
+    #[test]
+    fn eat_heals_and_removes_item() {
+        let mut state = make_state_with_consumables();
+        state.players.get_mut(&CLIENT).unwrap().core.health = 60;
+        let (out, _) = execute(Command::Eat("ration".to_string()), CLIENT, &mut state);
+        assert!(out.contains("consume") || out.contains("ration"), "got: {out}");
+        assert_eq!(state.players[&CLIENT].core.health, 80);
+        assert!(!state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "ration"));
+    }
+
+    #[test]
+    fn consume_capped_at_max_health() {
+        let mut state = make_state_with_consumables();
+        // player starts at full health (100)
+        let (_, _) = execute(Command::Eat("ration".to_string()), CLIENT, &mut state);
+        assert_eq!(state.players[&CLIENT].core.health, state.players[&CLIENT].core.max_health);
+    }
+
+    #[test]
+    fn use_item_shows_custom_message() {
+        let mut state = make_state_with_consumables();
+        let (out, _) = execute(Command::UseItem("stimpak".to_string()), CLIENT, &mut state);
+        assert!(out.contains("injector"), "got: {out}");
+    }
+
+    #[test]
+    fn consume_non_consumable_rejected() {
+        let mut state = make_state_with_consumables();
+        let (out, _) = execute(Command::Eat("rock".to_string()), CLIENT, &mut state);
+        assert!(out.contains("can't consume"), "got: {out}");
+        assert!(state.players[&CLIENT].inventory.iter().any(|o| o.template_id == "rock"));
+    }
+
+    #[test]
+    fn consume_missing_item_gives_error() {
+        let mut state = make_state_with_consumables();
+        let (out, _) = execute(Command::Eat("widget".to_string()), CLIENT, &mut state);
+        assert!(out.contains("aren't carrying"), "got: {out}");
     }
 
     // --- enter_fixture ---

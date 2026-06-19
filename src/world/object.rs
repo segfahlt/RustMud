@@ -277,6 +277,15 @@ pub struct ObjectTemplate {
     /// Persist state across reboots (crafting stations, toggles that matter).
     #[serde(default)]
     pub persist_state:    bool,
+
+    // --- Consumable fields ---
+
+    /// HP restored when consumed. 0 = no healing (purely flavour or side-effect).
+    #[serde(default)]
+    pub health_restore:  u32,
+    /// Message shown to the player on consume. Defaults to a generic "You consume <short>."
+    #[serde(default)]
+    pub consume_message: Option<String>,
 }
 
 impl ObjectTemplate {

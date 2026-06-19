@@ -84,6 +84,27 @@ impl Registry {
                 parse: parse_read,
             },
             CommandDef {
+                name: "eat", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "eat <food>",
+                description: "Eat a food item.",
+                parse: parse_eat,
+            },
+            CommandDef {
+                name: "drink", priority: 20, aliases: &[],
+                category: Category::Items,
+                usage: "drink <liquid>",
+                description: "Drink something.",
+                parse: parse_drink,
+            },
+            CommandDef {
+                name: "use", priority: 15, aliases: &[],
+                category: Category::Items,
+                usage: "use <item>",
+                description: "Use a consumable item.",
+                parse: parse_use_item,
+            },
+            CommandDef {
                 name: "wield", priority: 15, aliases: &[],
                 category: Category::Items,
                 usage: "wield <weapon>",
@@ -377,6 +398,27 @@ fn parse_read(rest: &str) -> Result<Command, ParseError> {
         return Err(ParseError::MissingTarget("Read what?".to_string()));
     }
     Ok(Command::Read(rest.to_string()))
+}
+
+fn parse_eat(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Eat what?".to_string()));
+    }
+    Ok(Command::Eat(rest.to_string()))
+}
+
+fn parse_drink(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Drink what?".to_string()));
+    }
+    Ok(Command::Drink(rest.to_string()))
+}
+
+fn parse_use_item(rest: &str) -> Result<Command, ParseError> {
+    if rest.is_empty() {
+        return Err(ParseError::MissingTarget("Use what?".to_string()));
+    }
+    Ok(Command::UseItem(rest.to_string()))
 }
 
 fn parse_wield(rest: &str) -> Result<Command, ParseError> {

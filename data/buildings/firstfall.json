@@ -50,6 +50,45 @@
       "value": 300
     },
     {
+      "id": "ration_bar",
+      "names": ["ration", "ration bar", "food"],
+      "short": "a ration bar",
+      "room_look": "A compressed ration bar sits on the processing counter.",
+      "description": "Colonial Logistics issue. Calorie-dense, flavor-absent. The wrapper reads '2200 kcal — do not consume if seal is broken' in three languages, two of which were spoken on a planet four light-years from here. The seal is broken.",
+      "category": "consumable",
+      "weight": "tiny", "bulk": "tiny", "material": "composite",
+      "health_restore": 20,
+      "consume_message": "You eat the ration bar. It tastes like sawdust and corporate policy. Your body doesn't care.",
+      "flags": ["CORPORATE_ISSUE"],
+      "value": 5
+    },
+    {
+      "id": "water_canteen",
+      "names": ["canteen", "water canteen", "water"],
+      "short": "a water canteen",
+      "room_look": "A dented water canteen rests on the shelf.",
+      "description": "Aluminum, dented at the shoulder, scratched initials on the base. Someone carried this for a long time. It is about half full — purified, based on the faint chemical smell. The cap is still tight.",
+      "category": "consumable",
+      "weight": "light", "bulk": "small", "material": "metal",
+      "health_restore": 10,
+      "consume_message": "You drink from the canteen. The water is flat and slightly chemical. You feel better anyway.",
+      "flags": ["SETTLER_MADE"],
+      "value": 8
+    },
+    {
+      "id": "stimpak",
+      "names": ["stimpak", "stim", "injector"],
+      "short": "a stimpak",
+      "room_look": "A medical stimpak rests in the first-aid kit on the wall.",
+      "description": "Auto-injector, single use. Corporate Medical stamp on the cartridge. Coagulant, stimulant, synthetic adrenaline analogue. The charge indicator reads full. You have heard stories about what these feel like. You have not heard stories about what it feels like when they do not work.",
+      "category": "consumable",
+      "weight": "tiny", "bulk": "tiny", "material": "composite",
+      "health_restore": 50,
+      "consume_message": "The injector fires into your neck. Warmth spreads through your shoulder and down your arm. Your heart rate spikes, then steadies. Whatever was wrong feels less wrong.",
+      "flags": ["CORPORATE_ISSUE", "RESTRICTED"],
+      "value": 80
+    },
+    {
       "id": "hunting_knife",
       "names": ["knife", "hunting knife"],
       "short": "a hunting knife",
