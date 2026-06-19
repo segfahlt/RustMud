@@ -4,7 +4,7 @@ pub mod npc;
 pub mod player;
 
 pub use core::MobCore;
-pub use monster::Monster;
+pub use monster::MonsterInstance;
 pub use npc::Npc;
 pub use player::{Equipment, Player};
 
@@ -29,38 +29,33 @@ pub trait Mobile {
     fn describe(&self) -> String;
 }
 
-// The enum that lets rooms and the world hold any mob type in one collection.
-// Each variant wraps a concrete type — the type information is preserved.
 pub enum Mob {
     Player(Player),
     Npc(Npc),
-    Monster(Monster),
+    Monster(MonsterInstance),
 }
 
-// Delegating Mobile impl: just forward each method to the inner type.
-// The compiler ensures every Mob variant is handled — add a new variant
-// and forget to update this, and it won't compile.
 impl Mobile for Mob {
     fn core(&self) -> &MobCore {
         match self {
-            Mob::Player(p) => p.core(),
-            Mob::Npc(n) => n.core(),
+            Mob::Player(p)  => p.core(),
+            Mob::Npc(n)     => n.core(),
             Mob::Monster(m) => m.core(),
         }
     }
 
     fn core_mut(&mut self) -> &mut MobCore {
         match self {
-            Mob::Player(p) => p.core_mut(),
-            Mob::Npc(n) => n.core_mut(),
+            Mob::Player(p)  => p.core_mut(),
+            Mob::Npc(n)     => n.core_mut(),
             Mob::Monster(m) => m.core_mut(),
         }
     }
 
     fn describe(&self) -> String {
         match self {
-            Mob::Player(p) => p.describe(),
-            Mob::Npc(n) => n.describe(),
+            Mob::Player(p)  => p.describe(),
+            Mob::Npc(n)     => n.describe(),
             Mob::Monster(m) => m.describe(),
         }
     }
@@ -77,7 +72,24 @@ mod tests {
     }
 
     fn player(name: &str) -> Player { Player::new(MobCore::new(1, name, 100, loc()), name) }
-    fn monster(name: &str, hp: u32) -> Monster { Monster::new(MobCore::new(2, name, hp, loc()), false) }
+    fn monster(name: &str, hp: u32) -> MonsterInstance {
+        use crate::world::{CombatStats, DamageType, MonsterTemplate};
+        let tmpl = MonsterTemplate {
+            id: name.to_lowercase(), names: vec![name.to_lowercase()],
+            short: name.to_string(), description: String::new(), room_look: String::new(),
+            health_min: hp, health_max: hp,
+            combat: CombatStats {
+                attack: 5, defense: 0, damage_min: 1, damage_max: 3,
+                attack_type: DamageType::Physical, xp_value: 10,
+                resistances: vec![], immunities: vec![],
+            },
+            stationary: false, wanders: false, aggressive: false,
+            follows_aggressive: false, calls_for_help: false,
+            detection_range: 1, flee_threshold: 0,
+            faction: None, respawn_secs: 60, chance_of_loot: 0, loot_table: vec![],
+        };
+        MonsterInstance::spawn(2, &tmpl, loc())
+    }
 
     // --- Mobile trait via concrete types ---
     #[test] fn player_name()   { assert_eq!(player("Aldric").name(), "Aldric"); }

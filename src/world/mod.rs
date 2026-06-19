@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub mod area;
 pub mod hex;
 pub mod loader;
+pub mod mob_template;
 pub mod object;
 pub mod room;
 pub mod worldmap;
@@ -13,17 +14,20 @@ pub use area::Area;
 pub use hex::{
     AreaRef, EvolutionStage, ExitDestination, FixtureRef, HexCoord, PlayerLocation,
 };
+pub use mob_template::{CombatStats, DamageType, LootEntry, MobRegistry, MonsterTemplate};
 pub use object::{FixturePermanence, ObjectInstance, ObjectRegistry, ObjectTemplate};
 pub use room::{Direction, Room};
 pub use worldmap::WorldMap;
 pub use zone::Zone;
 
 pub struct World {
-    zones:           HashMap<HexCoord, Zone>,
-    pub rooms:       HashMap<u32, Room>,
+    zones:               HashMap<HexCoord, Zone>,
+    pub rooms:           HashMap<u32, Room>,
     pub object_registry: ObjectRegistry,
+    pub mob_registry:    MobRegistry,
     pub world_map:       WorldMap,
-    room_id_seq:     AtomicU32,
+    room_id_seq:         AtomicU32,
+    mob_id_seq:          AtomicU32,
 }
 
 impl Default for World {
@@ -36,20 +40,23 @@ impl World {
             zones:           HashMap::new(),
             rooms:           HashMap::new(),
             object_registry: HashMap::new(),
+            mob_registry:    HashMap::new(),
             world_map:       WorldMap::empty(),
             room_id_seq:     AtomicU32::new(0),
+            mob_id_seq:      AtomicU32::new(0),
         }
     }
 
-    /// Returns the next unique room ID (increments the sequence).
     pub fn next_room_id(&self) -> u32 {
         self.room_id_seq.fetch_add(1, Ordering::Relaxed) + 1
     }
 
-    /// Seeds the sequence from the highest previously issued ID.
-    /// Called by the loader after all static rooms are registered.
     pub fn seed_room_id_seq(&self, last_issued: u32) {
         self.room_id_seq.store(last_issued, Ordering::Relaxed);
+    }
+
+    pub fn next_mob_id(&self) -> u32 {
+        self.mob_id_seq.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     /// Returns the last issued room ID (the value to persist on shutdown).

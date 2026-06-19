@@ -71,10 +71,12 @@ pub struct Room {
     pub breadcrumb_building:  String,
     pub exits:                HashMap<Direction, ExitDestination>,
     pub objects:              Vec<ObjectInstance>,
+    /// Template IDs to spawn when the server starts. Used once during GameState init.
+    pub mob_spawns:           Vec<String>,
 }
 
 impl Room {
-    pub fn render(&self, registry: &ObjectRegistry, is_admin: bool) -> String {
+    pub fn render(&self, registry: &ObjectRegistry, is_admin: bool, mob_lines: &[String]) -> String {
         let exits = if self.exits.is_empty() {
             "none".to_string()
         } else {
@@ -103,9 +105,11 @@ impl Room {
                 extras.push(line);
             }
         }
-        if !extras.is_empty() {
+        let mob_refs: Vec<&str> = mob_lines.iter().map(|s| s.as_str()).collect();
+        let all_extras: Vec<&str> = extras.into_iter().chain(mob_refs).collect();
+        if !all_extras.is_empty() {
             out.push('\n');
-            for line in extras {
+            for line in all_extras {
                 out.push('\n');
                 out.push_str(line);
             }
@@ -150,13 +154,14 @@ mod tests {
             breadcrumb_building: "Building".to_string(),
             exits:               HashMap::new(),
             objects:             vec![],
+            mob_spawns:          vec![],
         }
     }
 
     #[test]
     fn render_non_admin_no_id() {
         let room = make_room(7);
-        let out = room.render(&HashMap::new(), false);
+        let out = room.render(&HashMap::new(), false, &[]);
         assert!(out.contains("Test Room"));
         assert!(!out.contains("#7"));
     }
@@ -164,14 +169,14 @@ mod tests {
     #[test]
     fn render_admin_shows_id() {
         let room = make_room(7);
-        let out = room.render(&HashMap::new(), true);
+        let out = room.render(&HashMap::new(), true, &[]);
         assert!(out.contains("#7"));
     }
 
     #[test]
     fn render_includes_exits_label() {
         let room = make_room(1);
-        let out = room.render(&HashMap::new(), false);
+        let out = room.render(&HashMap::new(), false, &[]);
         assert!(out.contains("Exits:"));
     }
 

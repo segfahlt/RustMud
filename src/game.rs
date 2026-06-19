@@ -3,18 +3,59 @@ use std::collections::HashMap;
 use crate::commands::{help_text, Command, OHelpQuery};
 use crate::world::object::{Bulk, EquipSlot, Material, ObjectCategory, ObjectFlag, ObjectTemplate, Weight};
 use crate::world::AreaRef;
-use crate::mob::{Equipment, MobCore, Player};
+use crate::mob::{Equipment, MobCore, MonsterInstance, Player};
 use crate::persist::CharacterSave;
 use crate::world::{Area, Direction, ExitDestination, HexCoord, ObjectInstance, PlayerLocation, World};
 
 pub struct GameState {
-    pub world:   World,
-    pub players: HashMap<u32, Player>,  // client_id → Player
+    pub world:    World,
+    pub players:  HashMap<u32, Player>,   // client_id → Player
+    pub monsters: HashMap<u32, MonsterInstance>, // mob_id → MonsterInstance
 }
 
 impl GameState {
     pub fn new(world: World) -> Self {
-        GameState { world, players: HashMap::new() }
+        let mut state = GameState { world, players: HashMap::new(), monsters: HashMap::new() };
+        state.spawn_initial_mobs();
+        state
+    }
+
+    fn spawn_initial_mobs(&mut self) {
+        let mut spawns: Vec<(String, PlayerLocation)> = Vec::new();
+
+        for zone in self.world.zones() {
+            let coord = zone.coord;
+            for area in zone.areas() {
+                let loc = PlayerLocation::area(coord, area.id);
+                for tid in &area.mob_spawns {
+                    spawns.push((tid.clone(), loc));
+                }
+            }
+        }
+        for (&room_id, room) in &self.world.rooms {
+            let loc = PlayerLocation::room(room_id);
+            for tid in &room.mob_spawns {
+                spawns.push((tid.clone(), loc));
+            }
+        }
+
+        for (template_id, loc) in spawns {
+            if let Some(tmpl) = self.world.mob_registry.get(&template_id) {
+                let id = self.world.next_mob_id();
+                let instance = MonsterInstance::spawn(id, tmpl, loc);
+                self.monsters.insert(id, instance);
+            }
+        }
+    }
+
+    fn mob_lines_at(&self, loc: PlayerLocation) -> Vec<String> {
+        let mut lines: Vec<String> = self.monsters.values()
+            .filter(|m| !m.dead && m.core.location == loc)
+            .filter_map(|m| self.world.mob_registry.get(&m.template_id))
+            .map(|tmpl| tmpl.room_look.clone())
+            .collect();
+        lines.sort();
+        lines
     }
 
     pub fn add_player(
@@ -98,22 +139,24 @@ pub fn describe_location(client_id: u32, state: &GameState) -> String {
             match state.world.get_area(area_ref) {
                 Some(area) => {
                     let zone_name = state.world.get_zone_name(area_ref.zone).unwrap_or("Unknown");
-                    render_area(area, zone_name, &state.world.object_registry)
+                    let mob_lines = state.mob_lines_at(player.core.location);
+                    render_area(area, zone_name, &state.world.object_registry, &mob_lines)
                 }
                 None => "(You are nowhere. This is a bug.)\n".to_string(),
             }
         }
         PlayerLocation::Room { room_id } => {
             let is_admin = state.players.get(&client_id).map(|p| p.is_admin).unwrap_or(false);
+            let mob_lines = state.mob_lines_at(player.core.location);
             match state.world.get_room(room_id) {
-                Some(room) => room.render(&state.world.object_registry, is_admin),
+                Some(room) => room.render(&state.world.object_registry, is_admin, &mob_lines),
                 None       => "(You are in an unregistered room. This is a bug.)\n".to_string(),
             }
         }
     }
 }
 
-fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegistry) -> String {
+fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegistry, mob_lines: &[String]) -> String {
     let exits = if area.exits.is_empty() {
         "none".to_string()
     } else {
@@ -132,9 +175,11 @@ fn render_area(area: &Area, zone_name: &str, registry: &crate::world::ObjectRegi
             extras.push(line);
         }
     }
-    if !extras.is_empty() {
+    let mob_refs: Vec<&str> = mob_lines.iter().map(|s| s.as_str()).collect();
+    let all_extras: Vec<&str> = extras.into_iter().chain(mob_refs).collect();
+    if !all_extras.is_empty() {
         out.push('\n');
-        for line in extras {
+        for line in all_extras {
             out.push('\n');
             out.push_str(line);
         }
@@ -1217,7 +1262,8 @@ mod tests {
                     fixture_id: "gate".to_string(),
                 })),
             ]),
-            objects: vec![],
+            objects:    vec![],
+            mob_spawns: vec![],
         });
 
         let mut state = GameState::new(world);

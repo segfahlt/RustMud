@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 use super::area::Area;
 use super::hex::{AreaRef, EvolutionStage, ExitDestination, HexCoord};
+use super::mob_template::MonsterTemplate;
 use super::object::{
     Bulk, FixturePermanence, Material, ObjectInstance, ObjectTemplate, Weight,
 };
@@ -18,9 +19,15 @@ use super::{World, WorldMap, Zone};
 // --- File format structs ---
 // Public so the schema binary can generate JSON Schema from them.
 
-/// Minimal object reference in a zone file: spawns one instance of the named template.
+/// Minimal object reference in a zone/building file: spawns one instance of the named template.
 #[derive(Deserialize, JsonSchema)]
 pub struct ObjectSpawnFile {
+    pub template_id: String,
+}
+
+/// Mob spawn entry in a zone/building file: spawns one instance of the named mob template.
+#[derive(Deserialize, JsonSchema)]
+pub struct MobSpawnFile {
     pub template_id: String,
 }
 
@@ -93,6 +100,8 @@ pub struct AreaFile {
     pub fixtures: Vec<FixtureFile>,
     #[serde(default)]
     pub objects: Vec<ObjectSpawnFile>,
+    #[serde(default)]
+    pub mobs: Vec<MobSpawnFile>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -110,6 +119,8 @@ pub struct ZoneFile {
     pub areas:        Vec<AreaFile>,
     #[serde(default)]
     pub object_templates: Vec<ObjectTemplate>,
+    #[serde(default)]
+    pub mob_templates: Vec<MonsterTemplate>,
 }
 
 fn default_coherence() -> u8 { 50 }
@@ -132,6 +143,8 @@ pub struct RoomFile {
     pub fixtures: Vec<FixtureFile>,
     #[serde(default)]
     pub objects:  Vec<ObjectSpawnFile>,
+    #[serde(default)]
+    pub mobs:     Vec<MobSpawnFile>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -143,6 +156,8 @@ pub struct BuildingFile {
     pub rooms:               Vec<RoomFile>,
     #[serde(default)]
     pub object_templates:    Vec<ObjectTemplate>,
+    #[serde(default)]
+    pub mob_templates:       Vec<MonsterTemplate>,
 }
 
 // --- LoadError ---
@@ -265,6 +280,9 @@ fn load_zone_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
     for tmpl in zone_file.object_templates {
         world.object_registry.insert(tmpl.id.clone(), tmpl);
     }
+    for tmpl in zone_file.mob_templates {
+        world.mob_registry.insert(tmpl.id.clone(), tmpl);
+    }
 
     let coord = HexCoord::new(zone_file.q, zone_file.r);
     let mut zone = Zone::new(coord, zone_file.name, zone_file.description);
@@ -305,12 +323,17 @@ fn load_zone_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
             objects.push(ObjectInstance::new(spawn.template_id));
         }
 
+        let mob_spawns: Vec<String> = area_file.mobs.into_iter()
+            .map(|m| m.template_id)
+            .collect();
+
         zone.add_area(Area {
             id: area_id,
             name: area_file.name,
             description: area_file.description,
             exits,
             objects,
+            mob_spawns,
             ..Area::default()
         });
     }
@@ -326,6 +349,9 @@ fn load_building_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
 
     for tmpl in building.object_templates {
         world.object_registry.insert(tmpl.id.clone(), tmpl);
+    }
+    for tmpl in building.mob_templates {
+        world.mob_registry.insert(tmpl.id.clone(), tmpl);
     }
 
     for room_file in building.rooms {
@@ -364,6 +390,10 @@ fn load_building_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
             objects.push(ObjectInstance::new(spawn.template_id));
         }
 
+        let mob_spawns: Vec<String> = room_file.mobs.into_iter()
+            .map(|m| m.template_id)
+            .collect();
+
         let zone_label = if room_file.breadcrumb_zone.is_empty() {
             building.breadcrumb_zone.clone()
         } else {
@@ -383,6 +413,7 @@ fn load_building_into(path: &Path, world: &mut World) -> Result<(), LoadError> {
             breadcrumb_building: bldg_label,
             exits,
             objects,
+            mob_spawns,
         });
     }
 

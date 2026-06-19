@@ -13,6 +13,8 @@ pub struct Area {
     pub description: String,
     pub exits:       HashMap<Direction, AreaRef>,
     pub objects:     Vec<ObjectInstance>,
+    /// Template IDs to spawn when the server starts. Used once during GameState init.
+    pub mob_spawns:  Vec<String>,
 
     // --- Evolution tracking ---
     pub evolution_stage: EvolutionStage,
@@ -31,7 +33,7 @@ pub struct Area {
 }
 
 impl Area {
-    pub fn render(&self, registry: &ObjectRegistry) -> String {
+    pub fn render(&self, registry: &ObjectRegistry, mob_lines: &[String]) -> String {
         let exits = if self.exits.is_empty() {
             "none".to_string()
         } else {
@@ -49,9 +51,11 @@ impl Area {
                 extras.push(line);
             }
         }
-        if !extras.is_empty() {
+        let mob_refs: Vec<&str> = mob_lines.iter().map(|s| s.as_str()).collect();
+        let all_extras: Vec<&str> = extras.into_iter().chain(mob_refs).collect();
+        if !all_extras.is_empty() {
             out.push('\n');
-            for line in extras {
+            for line in all_extras {
                 out.push('\n');
                 out.push_str(line);
             }
