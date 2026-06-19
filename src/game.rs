@@ -855,6 +855,94 @@ mod tests {
         );
     }
 
+    // --- read ---
+
+    fn make_state_with_data_items() -> GameState {
+        let mut state = make_state();
+        let registry = &mut state.world.object_registry;
+
+        // A Data item with an explicit read field.
+        registry.insert("note".to_string(), ObjectTemplate {
+            id: "note".to_string(),
+            names: vec!["note".to_string()],
+            short: "a note".to_string(),
+            room_look: "A note lies here.".to_string(),
+            description: "A scrap of paper.".to_string(),
+            read: Some("The note says: meet me at dawn.".to_string()),
+            category: ObjectCategory::Data,
+            weight: Default::default(), bulk: Default::default(),
+            material: Default::default(), flags: vec![], value: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None,
+            coherence_driven: false, persist_state: false,
+        });
+
+        // A Data item with no read field — falls back to description.
+        registry.insert("photo".to_string(), ObjectTemplate {
+            id: "photo".to_string(),
+            names: vec!["photo".to_string()],
+            short: "a photograph".to_string(),
+            room_look: String::new(),
+            description: "A faded photograph.".to_string(),
+            read: None,
+            category: ObjectCategory::Data,
+            weight: Default::default(), bulk: Default::default(),
+            material: Default::default(), flags: vec![], value: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None,
+            coherence_driven: false, persist_state: false,
+        });
+
+        // A non-Data item with no read field.
+        registry.insert("knife".to_string(), ObjectTemplate {
+            id: "knife".to_string(),
+            names: vec!["knife".to_string()],
+            short: "a knife".to_string(),
+            room_look: "A knife lies here.".to_string(),
+            description: "A plain knife.".to_string(),
+            read: None,
+            category: ObjectCategory::Weapon,
+            weight: Default::default(), bulk: Default::default(),
+            material: Default::default(), flags: vec![], value: 0,
+            state_lines: None, permanence: None, minimum_stage: None,
+            connects_to_room: None, direction: None,
+            coherence_driven: false, persist_state: false,
+        });
+
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("note"));
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("photo"));
+        state.players.get_mut(&CLIENT).unwrap().inventory.push(ObjectInstance::new("knife"));
+        state
+    }
+
+    #[test]
+    fn read_shows_read_field_when_present() {
+        let mut state = make_state_with_data_items();
+        let (out, _) = execute(Command::Read("note".to_string()), CLIENT, &mut state);
+        assert!(out.contains("meet me at dawn"), "got: {out}");
+    }
+
+    #[test]
+    fn read_falls_back_to_description_for_data_without_read_field() {
+        let mut state = make_state_with_data_items();
+        let (out, _) = execute(Command::Read("photo".to_string()), CLIENT, &mut state);
+        assert!(out.contains("faded photograph"), "got: {out}");
+    }
+
+    #[test]
+    fn read_non_data_item_says_nothing_to_read() {
+        let mut state = make_state_with_data_items();
+        let (out, _) = execute(Command::Read("knife".to_string()), CLIENT, &mut state);
+        assert!(out.contains("nothing to read"), "got: {out}");
+    }
+
+    #[test]
+    fn read_missing_item_says_not_here() {
+        let mut state = make_state();
+        let (out, _) = execute(Command::Read("widget".to_string()), CLIENT, &mut state);
+        assert!(out.contains("don't see"), "got: {out}");
+    }
+
     // --- enter_fixture ---
 
     #[test]
